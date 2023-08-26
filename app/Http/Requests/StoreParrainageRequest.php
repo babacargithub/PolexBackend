@@ -23,11 +23,11 @@ class StoreParrainageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "prenom"=>"required|min:3|max:40",
-            "nom"=>"required|min:2|max:10",
-            "nin"=>"required|integer|digits_between: 13,14",
-            "num_electeur"=>"required|integer",
-            "bureau"=>"required|integer",
+            "prenom"=>"required|min:3|max:50",
+            "nom"=>"required|min:2|max:20",
+            "nin"=>"required|digits_between: 13,14",
+            "num_electeur"=>"required|digits_between: 9,10",
+//            "bureau"=>"required|integer",
             "region"=>"required|string",
         ];
     }

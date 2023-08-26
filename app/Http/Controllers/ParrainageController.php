@@ -44,7 +44,28 @@ class ParrainageController extends Controller
         if ($haveAccessToProValidation){
             $validationResult = $this->proValidation($data);
             if($validationResult["all_fields_match"]){
-                return  new JsonResponse($validationResult, 200);
+
+                $data["taille"] = 123;
+                $data["parti_id"] = 1;
+                $request->validate([
+                    'nin' => [function($attribute,$value, $fail) use ($data){
+                        $electeur = Parrainage::where("nin",$data["nin"])->first();
+                        if ($electeur != null){
+                            //no match
+                            $fail('Un parrainage déjà enregistré avec la même cni ');
+                        }
+                    }],
+                    'num_electeur' => [function($attribute,$value, $fail) use ($data){
+                        $electeur = Parrainage::where('num_electeur',$data['num_electeur'])->first();
+                        if ($electeur != null){
+                            //no match
+                            $fail('Un parrainage déjà enregistré avec le même numéro électeur! ');
+                        }
+                    }],
+                ]);
+
+                return Parrainage::create($data);
+//                return  new JsonResponse($validationResult, 200);
 
             }else{
                 return  new JsonResponse(["message"=>"pro_validation_failed", "errors"=>$validationResult], 422);
@@ -104,19 +125,20 @@ class ParrainageController extends Controller
             return [
                 "has_match"=>true,
                 "all_fields_match"=>
-                    strtoupper($data["prenom"]) == strtoupper($electeur->prenom)
-                    && strtoupper($data["nom"]) == strtoupper($electeur->nom)
+                    strtolower($data["prenom"]) == strtolower($electeur->prenom)
+                    && strtolower($data["nom"]) == strtolower($electeur->nom)
                     && $data["nin"] == $electeur->nin
                     && $data["num_electeur"] == $electeur->num_electeur
-                    && $data["bureau"] == $electeur->bureau
-                    && strtoupper($data["region"]) == $electeur->region,
+                    //TODO changer later && $data["bureau"] == $electeur->bureau
+                    && strtolower($data["region"]) == strtolower($electeur->region),
                 "fields"=>[
-                    ["label"=>"PRENOM", "matched"=> strtoupper($data["prenom"]) == strtoupper($electeur->prenom)],
-                    ["label"=>"NOM", "matched"=> strtoupper($data["nom"]) == strtoupper($electeur->nom)],
-                    ["label"=>"NIN", "matched"=>$data["nin"] == strtoupper($electeur->nin)],
-                    ["label"=>"N° Electeur", "matched"=>$data["num_electeur"] == strtoupper($electeur->num_electeur)],
-                    [ "label"=>"BUREAU", "matched"=>$data["bureau"] == strtoupper($electeur->bureau)],
-                    ["label"=>"REGION", "matched"=> strtoupper($data["region"]) == strtoupper($electeur->region)]
+                    ["label"=>"PRENOM ".$data["prenom"], "matched"=> strtolower($data["prenom"]) == strtolower($electeur->prenom)],
+                    ["label"=>"NOM ".$data["nom"], "matched"=> strtolower($data["nom"]) == strtolower($electeur->nom)],
+                    ["label"=>"NIN ".$data["nin"], "matched"=>$data["nin"] == strtolower($electeur->nin)],
+                    ["label"=>"N° Electeur ".$data["num_electeur"], "matched"=> intval($data["num_electeur"]) == intval($electeur->num_electeur)],
+//TODO changer later
+//                    [ "label"=>"BUREAU", "matched"=>$data["bureau"] == strtoupper($electeur->bureau)],
+                    ["label"=>"REGION ".$data["region"], "matched"=> strtolower($data["region"]) == strtolower($electeur->region)]
                 ]
 
             ];
