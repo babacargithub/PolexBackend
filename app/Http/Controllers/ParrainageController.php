@@ -38,7 +38,8 @@ class ParrainageController extends Controller
     public function store(StoreParrainageRequest $request)
     {
         //
-        $data = $request->input();
+        $data = $request->validated();
+        //TODO change this later
         $haveAccessToProValidation = count($data) > 0;
         if ($haveAccessToProValidation){
             $validationResult = $this->proValidation($data);
@@ -103,19 +104,19 @@ class ParrainageController extends Controller
             return [
                 "has_match"=>true,
                 "all_fields_match"=>
-                    strtoupper($data["prenom"]) == $electeur->prenom
-                    && strtoupper($data["nom"]) == $electeur->nom
+                    strtoupper($data["prenom"]) == strtoupper($electeur->prenom)
+                    && strtoupper($data["nom"]) == strtoupper($electeur->nom)
                     && $data["nin"] == $electeur->nin
                     && $data["num_electeur"] == $electeur->num_electeur
                     && $data["bureau"] == $electeur->bureau
                     && strtoupper($data["region"]) == $electeur->region,
                 "fields"=>[
-                    ["label"=>"PRENOM", "matched"=> strtoupper($data["prenom"]) == $electeur->prenom],
-                    ["label"=>"NOM", "matched"=> strtoupper($data["nom"]) == $electeur->nom],
-                    ["label"=>"NIN", "matched"=>$data["nin"] == $electeur->nin],
-                    ["label"=>"N° Electeur", "matched"=>$data["num_electeur"] == $electeur->num_electeur],
-                    [ "label"=>"BUREAU", "matched"=>$data["bureau"] == $electeur->bureau],
-                    ["label"=>"REGION", "matched"=> strtoupper($data["region"]) == $electeur->region]
+                    ["label"=>"PRENOM", "matched"=> strtoupper($data["prenom"]) == strtoupper($electeur->prenom)],
+                    ["label"=>"NOM", "matched"=> strtoupper($data["nom"]) == strtoupper($electeur->nom)],
+                    ["label"=>"NIN", "matched"=>$data["nin"] == strtoupper($electeur->nin)],
+                    ["label"=>"N° Electeur", "matched"=>$data["num_electeur"] == strtoupper($electeur->num_electeur)],
+                    [ "label"=>"BUREAU", "matched"=>$data["bureau"] == strtoupper($electeur->bureau)],
+                    ["label"=>"REGION", "matched"=> strtoupper($data["region"]) == strtoupper($electeur->region)]
                 ]
 
             ];
