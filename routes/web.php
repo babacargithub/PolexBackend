@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |--------------------------------------------------------------------------
@@ -12,7 +13,10 @@ use Illuminate\Support\Facades\Route;
 | contains the "web" middleware group. Now create something great!
 |
 */
-
+//Route::get('/model_parrainage', function () {
+//    return Storage::url('model_parrainage.xlsx');
+//
+//})->name('excel.view');
 Route::get('/', function () {
     return view('welcome');
 });
