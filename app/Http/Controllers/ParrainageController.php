@@ -13,6 +13,42 @@ use Illuminate\Validation\ValidationException;
 
 class ParrainageController extends Controller
 {
+    const REGIONS_DIASPORA = [
+        'AFRIQUE DU SUD',
+        'ALLEMAGNE',
+        'ARABIE SAOUDITE',
+        'BELGIQUE',
+        'BRESIL',
+        'BURKINA FASO',
+        'CAMEROUN',
+        'CANADA',
+        'CAP VERT',
+        'CONGO',
+        'COTE D\'IVOIRE',
+        'EGYPTE',
+        'EMIRATS ARABES UNIS',
+        'ESPAGNE',
+        'FRANCE',
+        'GABON',
+        'GAMBIE',
+        'GHANA',
+        'GRANDE BRETAGNE',
+        'GUINEE',
+        'GUINEE BISSAU',
+        'ITALIE',
+        'KOWEIT',
+        'MALI',
+        'MAROC',
+        'MAURITANIE',
+        'NIGER',
+        'NIGERIA',
+        'PAYS - BAS',
+        'PORTUGAL',
+        'SUISSE',
+        'TOGO',
+        'TUNISIE',
+        'TURQUIE',
+    ];
 
     public function index()
     {
@@ -38,41 +74,43 @@ class ParrainageController extends Controller
     public function store(StoreParrainageRequest $request)
     {
         //
-        $data = $request->validated();
-        //TODO change this later
-        $haveAccessToProValidation = count($data) > 0;
+        $data = $request->input();
+        //TODO change these 2 lines later
+        $haveAccessToProValidation = count($data) > 100000;
+        $data["parti_id"] = 1;
+        $request->validate([
+            'nin' => [function($attribute,$value, $fail) use ($data){
+                $electeur = Parrainage::where("nin",$data["nin"])->first();
+                if ($electeur != null){
+                    //no match
+                    $fail('Un parrainage déjà enregistré avec la même cni ');
+                }
+            }],
+            'num_electeur' => [function($attribute,$value, $fail) use ($data){
+                $electeur = Parrainage::where('num_electeur',$data['num_electeur'])->first();
+                if ($electeur != null){
+                    //no match
+                    $fail('Un parrainage déjà enregistré avec le même numéro électeur! ');
+                }
+            }],
+        ]);
+
+        // Pro validation
+
         if ($haveAccessToProValidation){
-            $validationResult = $this->proValidation($data);
+            $electeur = Electeur::where("nin",$data['nin'])->orWhere('num_electeur',$data['num_electeur'])->first();
+
+            $validationResult = self::proValidation(new Parrainage($data),$electeur);
             if($validationResult["all_fields_match"]){
 
-                $data["taille"] = 123;
-                $data["parti_id"] = 1;
-                $request->validate([
-                    'nin' => [function($attribute,$value, $fail) use ($data){
-                        $electeur = Parrainage::where("nin",$data["nin"])->first();
-                        if ($electeur != null){
-                            //no match
-                            $fail('Un parrainage déjà enregistré avec la même cni ');
-                        }
-                    }],
-                    'num_electeur' => [function($attribute,$value, $fail) use ($data){
-                        $electeur = Parrainage::where('num_electeur',$data['num_electeur'])->first();
-                        if ($electeur != null){
-                            //no match
-                            $fail('Un parrainage déjà enregistré avec le même numéro électeur! ');
-                        }
-                    }],
-                ]);
-
                 return Parrainage::create($data);
-//                return  new JsonResponse($validationResult, 200);
 
             }else{
                 return  new JsonResponse(["message"=>"pro_validation_failed", "errors"=>$validationResult], 422);
             }
 
         }
-        return new Parrainage($data);
+        return  Parrainage::create($data);
     }
 
     /**
@@ -113,35 +151,37 @@ class ParrainageController extends Controller
         $parrainage->delete();
         return new Response('deleted',204);
     }
-    public function proValidation($data): array{
-        $nin = $data["nin"];
-        $num_electeur = $data["num_electeur"];
-
-        $electeur = Electeur::where("nin",$nin)->orWhere('num_electeur',$num_electeur)->first();
+    public static function proValidation(Parrainage $parrainage, $electeur): array{
+        $isDiasporaElecteur = strtolower($parrainage->region) == "diaspora";
         if ($electeur == null){
             //no match
-            return ["has_match"=>false, "all_fields_match"=> false];
+            return ["has_match"=>false, "all_fields_match"=> false, "fields"=>[]];
         }else{
             return [
                 "has_match"=>true,
                 "all_fields_match"=>
-                    strtolower($data["prenom"]) == strtolower($electeur->prenom)
-                    && strtolower($data["nom"]) == strtolower($electeur->nom)
-                    && $data["nin"] == $electeur->nin
-                    && $data["num_electeur"] == $electeur->num_electeur
+                    strtolower($parrainage->prenom) == strtolower($electeur->prenom)
+                    && strtolower($parrainage->nom) == strtolower($electeur->nom)
+                    && $parrainage->nin == $electeur->nin
+                    && $parrainage->num_electeur == $electeur->num_electeur
                     //TODO changer later && $data["bureau"] == $electeur->bureau
-                    && strtolower($data["region"]) == strtolower($electeur->region),
+                    && (strtolower($parrainage->region) == strtolower($electeur->region) || ($isDiasporaElecteur && self::isDiasporaRegion($electeur->region))),
                 "fields"=>[
-                    ["label"=>"PRENOM ".$data["prenom"], "matched"=> strtolower($data["prenom"]) == strtolower($electeur->prenom)],
-                    ["label"=>"NOM ".$data["nom"], "matched"=> strtolower($data["nom"]) == strtolower($electeur->nom)],
-                    ["label"=>"NIN ".$data["nin"], "matched"=>$data["nin"] == strtolower($electeur->nin)],
-                    ["label"=>"N° Electeur ".$data["num_electeur"], "matched"=> intval($data["num_electeur"]) == intval($electeur->num_electeur)],
+                    ["label"=>"PRENOM ".$parrainage->prenom, "matched"=> strtolower($parrainage->prenom) == strtolower($electeur->prenom)],
+                    ["label"=>"NOM ".$parrainage->nom, "matched"=> strtolower($parrainage->nom) == strtolower($electeur->nom)],
+                    ["label"=>"NIN ".$parrainage->nin, "matched"=>strtolower($parrainage->nin) == strtolower($electeur->nin)],
+                    ["label"=>"N° Electeur ".$parrainage->num_electeur, "matched"=> intval($parrainage->num_electeur) == intval($electeur->num_electeur)],
 //TODO changer later
 //                    [ "label"=>"BUREAU", "matched"=>$data["bureau"] == strtoupper($electeur->bureau)],
-                    ["label"=>"REGION ".$data["region"], "matched"=> strtolower($data["region"]) == strtolower($electeur->region)]
+                    ["label"=>"REGION ".$parrainage->region, "matched"=> (strtolower($parrainage->region) == strtolower($electeur->region) || ($isDiasporaElecteur && self::isDiasporaRegion($electeur->region)))]
                 ]
 
             ];
         }
+    }
+    public static function isDiasporaRegion($region): bool
+    {
+
+        return in_array($region,self::REGIONS_DIASPORA);
     }
 }

@@ -17,4 +17,5 @@ class Formule extends Model
     use CrudTrait;
     use HasFactory;
     protected $fillable =["nom","constant_name","prix"];
+    protected $casts = ["has_pro_validation"=>'boolean'];
 }

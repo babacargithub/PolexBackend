@@ -10,7 +10,7 @@ class Parrainage extends Model
 {
     use HasFactory;
     //TODO preciser si saisi ou généré
-    protected $fillable = ["num_electeur","prenom", "nom", "nin", "taille", "bureau", "region","parti_id"];
+    protected $fillable = ["num_electeur","prenom", "nom", "nin", "taille", "bureau","date_naiss","annee_naiss","lieu_naiss","centre", "created_at","updated_at", "region","parti_id"];
 
     public function parti(): BelongsTo
     {

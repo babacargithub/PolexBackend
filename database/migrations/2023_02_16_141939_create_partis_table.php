@@ -18,7 +18,7 @@ return new class extends Migration
             $table->id();
             $table->string("nom")->nullable(false);
             $table->string("code")->unique();
-            $table->foreignIdFor(Formule::class)->nullable();
+            $table->foreignIdFor(Formule::class)->nullable()->constrained();
             $table->timestamps();
         });
     }
