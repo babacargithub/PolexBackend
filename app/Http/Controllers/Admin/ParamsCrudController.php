@@ -2,23 +2,22 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Requests\FormuleRequest;
-use App\Models\Formule;
+use App\Http\Requests\ParamsRequest;
+use App\Models\Params;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
 use Backpack\CRUD\app\Http\Controllers\Operations\DeleteOperation;
 use Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
 use Backpack\CRUD\app\Http\Controllers\Operations\ShowOperation;
 use Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
-use Backpack\CRUD\app\Library\CrudPanel\CrudPanel;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 
 /**
- * Class FormuleCrudController
+ * Class ParamsCrudController
  * @package App\Http\Controllers\Admin
- * @property-read CrudPanel $crud
+ * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
  */
-class FormuleCrudController extends CrudController
+class ParamsCrudController extends CrudController
 {
     use ListOperation;
     use CreateOperation;
@@ -33,9 +32,9 @@ class FormuleCrudController extends CrudController
      */
     public function setup()
     {
-        CRUD::setModel(Formule::class);
-        CRUD::setRoute(config('backpack.base.route_prefix') . '/formule');
-        CRUD::setEntityNameStrings('formule', 'formules');
+        CRUD::setModel(Params::class);
+        CRUD::setRoute(config('backpack.base.route_prefix') . '/params');
+        CRUD::setEntityNameStrings('params', 'params');
     }
 
     /**
@@ -46,11 +45,14 @@ class FormuleCrudController extends CrudController
      */
     protected function setupListOperation()
     {
-        CRUD::column('nom');
-        CRUD::column('constant_name');
-        CRUD::column('prix');
-        CRUD::column('has_pro_validation');
-
+        CRUD::column('discriminant_field_name');
+        CRUD::column('discriminant_field');
+        CRUD::column('check_discriminant');
+        CRUD::column('min_count');
+        CRUD::column('max_count');
+        CRUD::column('count_per_region');
+        CRUD::column('created_at');
+        CRUD::column('updated_at');
 
         /**
          * Columns can be defined using the fluent syntax or array syntax:
@@ -67,12 +69,14 @@ class FormuleCrudController extends CrudController
      */
     protected function setupCreateOperation()
     {
-        CRUD::setValidation(FormuleRequest::class);
+        CRUD::setValidation(ParamsRequest::class);
 
-        CRUD::field('nom');
-        CRUD::field('prix');
-        CRUD::field('constant_name');
-        CRUD::field('has_pro_validation');
+        CRUD::field('discriminant_field_name');
+        CRUD::field('discriminant_field');
+        CRUD::field('check_discriminant');
+        CRUD::field('min_count');
+        CRUD::field('max_count');
+        CRUD::field('count_per_region');
 
         /**
          * Fields can be defined using the fluent syntax or array syntax:

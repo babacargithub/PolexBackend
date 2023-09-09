@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('centre')->nullable();
             $table->string('annee_naiss')->nullable();
             $table->integer('taille',)->nullable();
+            $table->boolean('generated',)->nullable()->default(false);
             $table->foreignIdFor(Parti::class)->nullable(false)->constrained();
             $table->timestamps();
 

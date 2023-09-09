@@ -1,14 +1,15 @@
 <?php
 
 use App\Http\Controllers\ParrainageController;
-use App\Models\Electeur;
-use App\Models\Formule;
+use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
+use App\Models\PartiUser;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Carbon\Carbon;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /*
 |--------------------------------------------------------------------------
@@ -36,22 +37,15 @@ Route::post('/login', function (Request $request){
                 }
             }],
         ]);*/
-        $token = request()->user()->createToken("name", [], Carbon::now()->addDays(30));
+        $token = request()->user()->createToken("name", [], Carbon::now()->addDay());
 //        $parti  = Parti::where('user_id', request()->user()->id)->first();
-        //TODO make dynamic
-        $parti  = Parti::first();
+        $parti  = Parti::partiOfCurrentUser();
+        $params = Params::getParams();
 
         $parti["has_pro"] = $parti->formule->has_pro_validation;
-        $parti["discriminantField"] = [
-                     'label'=> "Année de Naissance ",
-                      'name'=> 'annee_naiss',
-                      'type'=> "text",
-                      'maxLength'=> 4,
-                      'minLength'=> 4,
-                      'regex'=> '/\[d]*/',
-        ];
-
-        return response(["token"=>$token,"parti"=>$parti]);
+        $parti["discriminantField"] = json_decode($params->discriminant_field);
+        $params->discriminant_field = json_decode($params->discriminant_field);
+        return response(["token"=>$token,"parti"=>$parti,"params"=>$params]);
     }else{
 
         return response("Invalid credentials")->setStatusCode(401);
@@ -59,37 +53,32 @@ Route::post('/login', function (Request $request){
 
 });
 
-Route::get('parrainages//region/{region}', function ($region){
-    //TODO make dynamic
-    $parti_id = 1;
-    // TODO check if current user owns the data
-    return Parrainage::wherePartiId($parti_id)->whereRegion($region)->limit(10000)->paginate(1000);
-});
-Route::post('parrainages/excel', function (){
+Route::middleware(["auth:sanctum"])->group(function() {
+    Route::get('parrainages/region/{region}', function ($region){
 
-    $data = request()->json('data');
+        $parti_id = Parti::partiOfCurrentUser()->id;
+        return Parrainage::wherePartiId($parti_id)->whereRegion($region)->paginate(1000);
+    });
+    Route::post('parrainages/excel', function (){
 
-    if (count($data) <1000){
+        $data = request()->json('data');
         $dataWithoutDiscriminantFieldName = array_map(function ($item) {
-            //TODO make dynamic
-            $parti_id = 1;
+            $parti_id = Parti::partiOfCurrentUser()->id;
             $item = array_diff_key($item, array_flip(['discriminantFieldName']));
             $item["parti_id"] = $parti_id;
             return $item;
         }, $data);
         Parrainage::insert($dataWithoutDiscriminantFieldName);
-    }
 
-    return response()->json(["total_inserted"=>count($data),"duplicates"=>count($data)]);
-})->withoutMiddleware("throttle:api");
-Route::post('parrainages/bulk_pro_validation', function (){
+        return response()->json(["total_inserted"=>count($data),"duplicates"=>/* TODO change this later */count($data)]);
+    })->withoutMiddleware("throttle:api");
+    Route::post('parrainages/bulk_pro_validation', function (){
 
-    $data = request()->json('parrainages');
-    $region = request()->json('region');
-    $parrainagesValides= [];
-    $parrainagesInvalides= [];
+        $data = request()->json('parrainages');
+        $region = request()->json('region');
+        $parrainagesValides= [];
+        $parrainagesInvalides= [];
         foreach ($data as $parrainage) {
-            //TODO ADD DISCRIMINANT
             $table_name = $region == "SAINT LOUIS" ? 'saint_louis' : strtolower($region) ;
             $electeur = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"])
                 ->where("nin",$parrainage["nin"])
@@ -109,7 +98,7 @@ Route::post('parrainages/bulk_pro_validation', function (){
                         }
                     }
                 } else {
-                    $errors[] = "Introuvable dans le fichier électoral";
+                    $errors[] = "Introuvable dans la région de ".$region." ou dans le fichier électoral";
                 }
                 $parrainage ["raison"] = implode(", ",$errors);
                 $parrainagesInvalides[] = $parrainage;
@@ -117,7 +106,9 @@ Route::post('parrainages/bulk_pro_validation', function (){
         }
 
 
-    return ["parrainagesInvalides"=>$parrainagesInvalides, "parrainagesValides"=>$parrainagesValides];
-})->withoutMiddleware("throttle:api");
-Route::apiResource("parrainages", ParrainageController::class);
+        return ["parrainagesInvalides"=>$parrainagesInvalides, "parrainagesValides"=>$parrainagesValides];
+    })->withoutMiddleware("throttle:api");
+    Route::apiResource("parrainages", ParrainageController::class);
+
+});
 

@@ -11,15 +11,16 @@ return new class extends Migration
      *
      * @return void
      */
-    public function up()
+    public function up(): void
     {
-        Schema::create('formules', function (Blueprint $table) {
+        Schema::create('params', function (Blueprint $table) {
             $table->id();
-            $table->string("nom")->nullable(false);
-            $table->string("constant_name")->unique();
-            $table->integer("prix")->nullable(false);
-            $table->integer("has_pro_validation")->nullable(false)->default(false);
-
+            $table->string('discriminant_field_name');
+            $table->json('discriminant_field');
+            $table->boolean('check_discriminant');
+            $table->integer('min_count');
+            $table->integer('max_count');
+            $table->integer('count_per_region');
             $table->timestamps();
         });
     }
@@ -31,6 +32,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('plans');
+        Schema::dropIfExists('params');
     }
 };

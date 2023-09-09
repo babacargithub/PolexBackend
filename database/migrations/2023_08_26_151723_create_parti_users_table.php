@@ -15,10 +15,11 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('parti_users', function (Blueprint $table) {
+        Schema::create('parti_user', function (Blueprint $table) {
             $table->id();
             $table->foreignIdFor(User::class)->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreignIdFor(Parti::class)->constrained()->cascadeOnDelete()->cascadeOnUpdate();
+            $table->boolean("disabled")->default(false);
             $table->timestamps();
         });
     }
@@ -30,6 +31,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('parti_userss');
+        Schema::dropIfExists('parti_user');
     }
 };
