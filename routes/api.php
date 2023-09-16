@@ -1,15 +1,18 @@
 <?php
 
 use App\Http\Controllers\ParrainageController;
+use App\Models\Company;
 use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
-use App\Models\PartiUser;
+use App\Models\User;
+use App\Policies\RoleNames;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /*
 |--------------------------------------------------------------------------
@@ -45,7 +48,29 @@ Route::post('/login', function (Request $request){
         $parti["has_pro"] = $parti->formule->has_pro_validation;
         $parti["discriminantField"] = json_decode($params->discriminant_field);
         $params->discriminant_field = json_decode($params->discriminant_field);
-        return response(["token"=>$token,"parti"=>$parti,"params"=>$params]);
+        $roles = [];
+            foreach (request()->user()->roles as $role) {
+                $roles[] = $role->name;
+
+            }
+            $permissions = [];
+            foreach (request()->user()->permissions as $permission) {
+                $roles[] = $permission->name;
+
+            }
+            $user = request()->user();
+        return response(["token"=>$token,"parti"=>$parti,"params"=>$params,
+            "user"=>[
+                "email"=>$user->email,
+                "token"=>$token->plainTextToken,
+                "tokenExpiresAt"=>$token->accessToken->expires_at,
+                "name"=>$user->name,
+                "roles"=>$roles,
+                "permissions"=>$permissions,
+                "isAuthenticated"=>true
+            ],
+            "should_change_password"=>Hash::check("0000",$user->password)
+            ]);
     }else{
 
         return response("Invalid credentials")->setStatusCode(401);
@@ -54,6 +79,36 @@ Route::post('/login', function (Request $request){
 });
 
 Route::middleware(["auth:sanctum"])->group(function() {
+    Route::get('users', function (Request $request){
+
+        if (! $request->user()->hasPermissionTo('user-crud')){
+            abort(403,"Action non autorisée");
+        }
+        return Parti::partiOfCurrentUser()->users;
+    });
+    Route::post('users/create', function (Request $request){
+
+       if (! $request->user()->hasPermissionTo('user-crud')){
+           abort(403,"Action non autorisée");
+       }
+        $validated = $request->validate([
+            "email"=>"required|email|unique:users",
+            "name"=>"required|string"
+        ]);
+        $user = new User($validated);
+        $user->password = Hash::make("0000");
+        $user->email_verified_at = null;
+        $user->assignRole("writer");
+        $user->save();
+        $parti = Parti::partiOfCurrentUser();
+        $parti_user = new \App\Models\PartiUser();
+        $parti_user->user_id = $user->id;
+        $parti_user->parti_id = $parti->id;
+        $parti_user->save();
+
+        return $user;
+    });
+
     Route::get('parrainages/region/{region}', function ($region){
 
         $parti_id = Parti::partiOfCurrentUser()->id;
