@@ -26,6 +26,44 @@ use Illuminate\Support\Facades\Route;
 */
 
 
+/**
+ * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Http\Response
+ */
+function loginResponse(): \Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Contracts\Foundation\Application|\Illuminate\Http\Response
+{
+    $token = request()->user()->createToken("name", [], Carbon::now()->addDay());
+//        $parti  = Parti::where('user_id', request()->user()->id)->first();
+    $parti = Parti::partiOfCurrentUser();
+    $params = Params::getParams();
+
+    $parti["has_pro"] = $parti->formule->has_pro_validation;
+    $parti["discriminantField"] = json_decode($params->discriminant_field);
+    $params->discriminant_field = json_decode($params->discriminant_field);
+    $roles = [];
+    foreach (request()->user()->roles as $role) {
+        $roles[] = $role->name;
+
+    }
+    $permissions = [];
+    foreach (request()->user()->permissions as $permission) {
+        $roles[] = $permission->name;
+
+    }
+    $user = request()->user();
+    return response(["token" => $token, "parti" => $parti, "params" => $params,
+        "user" => [
+            "email" => $user->email,
+            "token" => $token->plainTextToken,
+            "tokenExpiresAt" => $token->accessToken->expires_at,
+            "name" => $user->name,
+            "roles" => $roles,
+            "permissions" => $permissions,
+            "isAuthenticated" => true
+        ],
+        "should_change_password" => (Hash::check("0000", $user->password) || Hash::check("1234", $user->password))
+    ]);
+}
+
 Route::post('/login', function (Request $request){
     $credentials = $request->validate([
         'email' => ['required', 'email'],
@@ -40,37 +78,7 @@ Route::post('/login', function (Request $request){
                 }
             }],
         ]);*/
-        $token = request()->user()->createToken("name", [], Carbon::now()->addDay());
-//        $parti  = Parti::where('user_id', request()->user()->id)->first();
-        $parti  = Parti::partiOfCurrentUser();
-        $params = Params::getParams();
-
-        $parti["has_pro"] = $parti->formule->has_pro_validation;
-        $parti["discriminantField"] = json_decode($params->discriminant_field);
-        $params->discriminant_field = json_decode($params->discriminant_field);
-        $roles = [];
-            foreach (request()->user()->roles as $role) {
-                $roles[] = $role->name;
-
-            }
-            $permissions = [];
-            foreach (request()->user()->permissions as $permission) {
-                $roles[] = $permission->name;
-
-            }
-            $user = request()->user();
-        return response(["token"=>$token,"parti"=>$parti,"params"=>$params,
-            "user"=>[
-                "email"=>$user->email,
-                "token"=>$token->plainTextToken,
-                "tokenExpiresAt"=>$token->accessToken->expires_at,
-                "name"=>$user->name,
-                "roles"=>$roles,
-                "permissions"=>$permissions,
-                "isAuthenticated"=>true
-            ],
-            "should_change_password"=>Hash::check("0000",$user->password)
-            ]);
+        return loginResponse();
     }else{
 
         return response("Invalid credentials")->setStatusCode(401);
@@ -108,6 +116,25 @@ Route::middleware(["auth:sanctum"])->group(function() {
 
         return $user;
     });
+    Route::post('users/change_password', function (Request $request){
+
+
+        $validated = $request->validate([
+            "oldPassword"=>"required",
+            "newPassword"=>"required",
+            "repeatedPassword"=>"required"
+        ]);
+
+        $user = $request->user();
+        $user->password = Hash::make($validated["newPassword"]);
+        $user->save();
+        Auth::user()->tokens->each(function ($token, $key) {
+            $token->delete();
+        });
+
+
+        return loginResponse();
+    });
 
     Route::get('parrainages/region/{region}', function ($region){
 
@@ -135,6 +162,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
         $parrainagesInvalides= [];
         foreach ($data as $parrainage) {
             $table_name = $region == "SAINT LOUIS" ? 'saint_louis' : strtolower($region) ;
+
             $electeur = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"])
                 ->where("nin",$parrainage["nin"])
                 ->orWhere("num_electeur",$parrainage["num_electeur"])
