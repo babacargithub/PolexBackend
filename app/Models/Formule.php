@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * @property boolean $has_pro_validation
+ * @property integer $prix
+ * @property string $nom
  * @Property("id")
  */
 class Formule extends Model

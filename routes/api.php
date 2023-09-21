@@ -37,6 +37,8 @@ function loginResponse(): \Illuminate\Contracts\Routing\ResponseFactory|\Illumin
     $params = Params::getParams();
 
     $parti["has_pro"] = $parti->formule->has_pro_validation;
+    //TODO make dynamic
+    $parti["has_correction"] = true;
     $parti["discriminantField"] = json_decode($params->discriminant_field);
     $params->discriminant_field = json_decode($params->discriminant_field);
     $roles = [];
@@ -118,7 +120,6 @@ Route::middleware(["auth:sanctum"])->group(function() {
     });
     Route::post('users/change_password', function (Request $request){
 
-
         $validated = $request->validate([
             "oldPassword"=>"required",
             "newPassword"=>"required",
@@ -141,56 +142,12 @@ Route::middleware(["auth:sanctum"])->group(function() {
         $parti_id = Parti::partiOfCurrentUser()->id;
         return Parrainage::wherePartiId($parti_id)->whereRegion($region)->paginate(1000);
     });
-    Route::post('parrainages/excel', function (){
-
-        $data = request()->json('data');
-        $dataWithoutDiscriminantFieldName = array_map(function ($item) {
-            $parti_id = Parti::partiOfCurrentUser()->id;
-            $item = array_diff_key($item, array_flip(['discriminantFieldName']));
-            $item["parti_id"] = $parti_id;
-            return $item;
-        }, $data);
-        Parrainage::insert($dataWithoutDiscriminantFieldName);
-
-        return response()->json(["total_inserted"=>count($data),"duplicates"=>/* TODO change this later */count($data)]);
-    })->withoutMiddleware("throttle:api");
-    Route::post('parrainages/bulk_pro_validation', function (){
-
-        $data = request()->json('parrainages');
-        $region = request()->json('region');
-        $parrainagesValides= [];
-        $parrainagesInvalides= [];
-        foreach ($data as $parrainage) {
-            $table_name = $region == "SAINT LOUIS" ? 'saint_louis' : strtolower($region) ;
-
-            $electeur = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"])
-                ->where("nin",$parrainage["nin"])
-                ->orWhere("num_electeur",$parrainage["num_electeur"])
-                ->first();
-            $validationResult = ParrainageController::proValidation(new Parrainage($parrainage),$electeur);
-            if ($validationResult["has_match"] && $validationResult["all_fields_match"]){
-                $parrainagesValides[] = $parrainage;
-            }else {
-                $errors = [];
-                if ($validationResult["has_match"]) {
-                    $fields = $validationResult["fields"];
-                    foreach ($fields as $field) {
-                        if (!$field['matched']) {
-                            $message = $field["label"] . ' non conforme';
-                            $errors[] = $message;
-                        }
-                    }
-                } else {
-                    $errors[] = "Introuvable dans la région de ".$region." ou dans le fichier électoral";
-                }
-                $parrainage ["raison"] = implode(", ",$errors);
-                $parrainagesInvalides[] = $parrainage;
-            }
-        }
-
-
-        return ["parrainagesInvalides"=>$parrainagesInvalides, "parrainagesValides"=>$parrainagesValides];
-    })->withoutMiddleware("throttle:api");
+    Route::post('parrainages/excel', [ParrainageController::class,"bulkInsertFromExcel"])
+        ->withoutMiddleware("throttle:api");
+    Route::post('parrainages/bulk_pro_validation',[ParrainageController::class,'bulkProValidation'])
+        ->withoutMiddleware("throttle:api");
+    Route::post('parrainages/bulk_correction',[ParrainageController::class,'bulkCorrection'])
+        ->withoutMiddleware("throttle:api");
     Route::apiResource("parrainages", ParrainageController::class);
 
 });

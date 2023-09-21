@@ -166,7 +166,7 @@ class ParrainageController extends Controller
         $isDiasporaElecteur = strtolower($parrainage->region) == "diaspora";
         $params = Params::getParams();
         $discriminantFieldName = $params->discriminant_field_name;
-        $shouldCheckDiscriminant = ($params->check_discriminant && isset($parrainage->{$discriminantFieldName}) && isset($electeur->{$discriminantFieldName}));
+        $shouldCheckDiscriminant = ($params->check_discriminant && isset($parrainage->$discriminantFieldName) && isset($electeur->$discriminantFieldName));
         if ($electeur == null){
             //no match
             return ["has_match"=>false, "all_fields_match"=> false, "fields"=>[]];
@@ -200,5 +200,112 @@ class ParrainageController extends Controller
     {
 
         return in_array($region,self::REGIONS_DIASPORA);
+    }
+
+    public function bulkInsertFromExcel(): JsonResponse
+    {
+
+        $data = request()->json('data');
+        $dataWithoutDiscriminantFieldName = array_map(function ($item) {
+            $parti_id = Parti::partiOfCurrentUser()->id;
+            $item = array_diff_key($item, array_flip(['discriminantFieldName']));
+            $item["parti_id"] = $parti_id;
+            return $item;
+        }, $data);
+        Parrainage::insertOrIgnore($dataWithoutDiscriminantFieldName);
+
+        return response()->json(["total_inserted"=>count($data),"duplicates"=>/* TODO change this later */count($data)]);
+
+
+    }
+
+    public function bulkProValidation(): array|JsonResponse
+    {
+        $has_pro = Parti::partiOfCurrentUser()->formule->has_pro_validation;
+        if (!$has_pro){
+            return response()->json(['Accès réservé aux clients Pro'],403);
+        }
+
+        $data = request()->json('parrainages');
+        $region = request()->json('region');
+        $parrainagesValides= [];
+        $parrainagesInvalides= [];
+        foreach ($data as $parrainage) {
+            $table_name = $region == "SAINT LOUIS" ? 'saint_louis' : strtolower($region) ;
+            //TODO add discriminant column in the select
+            $electeur = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"])
+                ->where("nin",$parrainage["nin"])
+                ->orWhere("num_electeur",$parrainage["num_electeur"])
+                ->first();
+            $validationResult = ParrainageController::proValidation(new Parrainage($parrainage),$electeur);
+            if ($validationResult["has_match"] && $validationResult["all_fields_match"]){
+                $parrainagesValides[] = $parrainage;
+            }else {
+                $errors = [];
+                if ($validationResult["has_match"]) {
+                    $fields = $validationResult["fields"];
+                    foreach ($fields as $field) {
+                        if (!$field['matched']) {
+                            $message = $field["label"] . ' non conforme';
+                            $errors[] = $message;
+                        }
+                    }
+                } else {
+                    $errors[] = "Introuvable dans la région de ".$region." ou dans le fichier électoral";
+                }
+                $parrainage ["raison"] = implode(", ",$errors);
+                $parrainagesInvalides[] = $parrainage;
+            }
+        }
+
+
+        return ["parrainagesInvalides"=>$parrainagesInvalides, "parrainagesValides"=>$parrainagesValides];
+
+    }
+    public function bulkCorrection(): array|JsonResponse
+    {
+        $params = Params::getParams();
+        $has_pro = Parti::partiOfCurrentUser()->formule->has_pro_validation;
+        if (!$has_pro){
+            return response()->json(['Accès réservé aux clients Pro'],403);
+        }
+
+        $data = request()->json('parrainages');
+        $parrainagesCorriges = [];
+        $parrainagesNonCorriges = [];
+        foreach ($data as $parrainage) {
+            $table_name = "electeurs";
+            //TODO ADD discriminant in the list
+            $discriminantName = $params->discriminant_field_name;
+
+            $query = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region",$discriminantName]);
+            $electeur = $query
+                ->where("nin",$parrainage["nin"])
+                ->first();
+            /** @var $electeur Electeur */
+            if ($electeur == null){
+                $electeur = $query->where("num_electeur",$parrainage["num_electeur"])
+                    ->first();
+            }
+
+            if ($electeur != null){
+                $corrected  = [];
+                $corrected["prenom"] = $electeur->prenom;
+                $corrected["nom"] = $electeur->nom;
+                $corrected["nin"] = $electeur->nin;
+                $corrected["num_electeur"] = $electeur->num_electeur;
+                $corrected["region"] = self::isDiasporaRegion($electeur->region)? "DIASPORA": $electeur->region;
+                // TODO add discriminant here and change this later
+                $corrected[$discriminantName] =  $parrainage[$discriminantName];
+                $parrainagesCorriges[] = $corrected;
+            }else{
+                $parrainagesNonCorriges [] = $parrainage;
+
+            }
+        }
+
+
+        return ["parrainagesCorriges"=>$parrainagesCorriges, "parrainagesNonCorriges"=>$parrainagesNonCorriges];
+
     }
 }
