@@ -37,8 +37,10 @@ function loginResponse(): \Illuminate\Contracts\Routing\ResponseFactory|\Illumin
     $params = Params::getParams();
 
     $parti["has_pro"] = $parti->formule->has_pro_validation;
-    //TODO make dynamic
+    //TODO make dynamic this 2 lines
     $parti["has_correction"] = true;
+    $parti["has_autocomplete"] = true;
+
     $parti["discriminantField"] = json_decode($params->discriminant_field);
     $params->discriminant_field = json_decode($params->discriminant_field);
     $roles = [];
@@ -140,8 +142,9 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::get('parrainages/region/{region}', function ($region){
 
         $parti_id = Parti::partiOfCurrentUser()->id;
-        return Parrainage::wherePartiId($parti_id)->whereRegion($region)->paginate(1000);
+        return Parrainage::wherePartiId($parti_id)->whereRegion($region)->orderBy("prenom")->paginate(1000);
     });
+    Route::get('parrainages/autocomplete/{param}',[ParrainageController::class,'findForAutocomplete']);
     Route::post('parrainages/excel', [ParrainageController::class,"bulkInsertFromExcel"])
         ->withoutMiddleware("throttle:api");
     Route::post('parrainages/bulk_pro_validation',[ParrainageController::class,'bulkProValidation'])

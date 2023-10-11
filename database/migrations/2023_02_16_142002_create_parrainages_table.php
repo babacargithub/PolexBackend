@@ -17,13 +17,7 @@ return new class extends Migration
             $table->string('nom',20)->nullable(false);
             $table->string('nin',15)->nullable(false);
             $table->string('region',30)->nullable(false);
-            $table->string('bureau',3)->nullable();
-            $table->string('discriminant')->nullable();
-            $table->string('date_naiss')->nullable();
-            $table->string('lieu_naiss')->nullable();
-            $table->string('centre')->nullable();
-            $table->string('annee_naiss')->nullable();
-            $table->integer('taille',)->nullable();
+            $table->string('date_expir')->nullable(false);
             $table->boolean('generated',)->nullable()->default(false);
             $table->foreignIdFor(Parti::class)->nullable(false)->constrained();
             $table->timestamps();

@@ -8,6 +8,7 @@ use App\Models\Electeur;
 use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -164,9 +165,6 @@ class ParrainageController extends Controller
     }
     public static function proValidation(Parrainage $parrainage, $electeur = null): array{
         $isDiasporaElecteur = strtolower($parrainage->region) == "diaspora";
-        $params = Params::getParams();
-        $discriminantFieldName = $params->discriminant_field_name;
-        $shouldCheckDiscriminant = ($params->check_discriminant && isset($parrainage->$discriminantFieldName) && isset($electeur->$discriminantFieldName));
         if ($electeur == null){
             //no match
             return ["has_match"=>false, "all_fields_match"=> false, "fields"=>[]];
@@ -178,8 +176,7 @@ class ParrainageController extends Controller
                     && strtolower($parrainage->nom) == strtolower($electeur->nom)
                     && $parrainage->nin == $electeur->nin
                     && $parrainage->num_electeur == $electeur->num_electeur
-                    && ($shouldCheckDiscriminant == true ? $parrainage->{$discriminantFieldName} == $electeur->{$discriminantFieldName} : true)
-                    && (strtolower($parrainage->region) == strtolower($electeur->region) || ($isDiasporaElecteur && self::isDiasporaRegion($electeur->region))),
+                    && (strtolower($parrainage->region) == strtolower($electeur->region) || (self::isDiasporaRegion($electeur->region))),
                 "fields"=>[
                     ["label"=>"PRENOM ".$parrainage->prenom, "matched"=> strtolower($parrainage->prenom) == strtolower($electeur->prenom)],
                     ["label"=>"NOM ".$parrainage->nom, "matched"=> strtolower($parrainage->nom) == strtolower($electeur->nom)],
@@ -189,9 +186,6 @@ class ParrainageController extends Controller
                 ]
 
             ];
-             if ($shouldCheckDiscriminant){
-                 $result[] = ["label"=> $discriminantFieldName.' '.$parrainage->{$discriminantFieldName},"matched"=>$parrainage->{$discriminantFieldName} == $electeur->{$discriminantFieldName} ];
-             }
 
              return $result;
         }
@@ -208,13 +202,13 @@ class ParrainageController extends Controller
         $data = request()->json('data');
         $dataWithoutDiscriminantFieldName = array_map(function ($item) {
             $parti_id = Parti::partiOfCurrentUser()->id;
-            $item = array_diff_key($item, array_flip(['discriminantFieldName']));
             $item["parti_id"] = $parti_id;
+            $item["created_at"] = Carbon::now();
             return $item;
         }, $data);
         Parrainage::insertOrIgnore($dataWithoutDiscriminantFieldName);
 
-        return response()->json(["total_inserted"=>count($data),"duplicates"=>/* TODO change this later */count($data)]);
+        return response()->json(["total_inserted"=>count($data)]);
 
 
     }
@@ -232,7 +226,6 @@ class ParrainageController extends Controller
         $parrainagesInvalides= [];
         foreach ($data as $parrainage) {
             $table_name = $region == "SAINT LOUIS" ? 'saint_louis' : strtolower($region) ;
-            //TODO add discriminant column in the select
             $electeur = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"])
                 ->where("nin",$parrainage["nin"])
                 ->orWhere("num_electeur",$parrainage["num_electeur"])
@@ -275,10 +268,8 @@ class ParrainageController extends Controller
         $parrainagesNonCorriges = [];
         foreach ($data as $parrainage) {
             $table_name = "electeurs";
-            //TODO ADD discriminant in the list
-            $discriminantName = $params->discriminant_field_name;
 
-            $query = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region",$discriminantName]);
+            $query = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"]);
             $electeur = $query
                 ->where("nin",$parrainage["nin"])
                 ->first();
@@ -294,9 +285,8 @@ class ParrainageController extends Controller
                 $corrected["nom"] = $electeur->nom;
                 $corrected["nin"] = $electeur->nin;
                 $corrected["num_electeur"] = $electeur->num_electeur;
+                $corrected["date_expir"] = $parrainage["date_expir"];
                 $corrected["region"] = self::isDiasporaRegion($electeur->region)? "DIASPORA": $electeur->region;
-                // TODO add discriminant here and change this later
-                $corrected[$discriminantName] =  $parrainage[$discriminantName];
                 $parrainagesCorriges[] = $corrected;
             }else{
                 $parrainagesNonCorriges [] = $parrainage;
@@ -307,5 +297,18 @@ class ParrainageController extends Controller
 
         return ["parrainagesCorriges"=>$parrainagesCorriges, "parrainagesNonCorriges"=>$parrainagesNonCorriges];
 
+    }
+
+    public function findForAutocomplete($param)
+    {
+        $electeur = DB::table("electeurs")->select(["prenom","nom","nin","num_electeur","region"])
+            ->where("nin",$param)
+            ->orWhere("num_electeur",$param)
+            ->first();
+        if ($electeur == null){
+            return response()->json(['message'=>'not found'],404);
+        }
+        $electeur->date_expir = null;
+        return $electeur;
     }
 }
