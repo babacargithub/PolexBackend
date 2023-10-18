@@ -9,13 +9,18 @@ use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
 use Carbon\Carbon;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class ParrainageController extends Controller
 {
+    const jsonHeaders = ["Accept"=>"application/json",
+        "Content-Type"=>"application/json"];
     const REGIONS_DIASPORA = [
         'AFRIQUE DU SUD',
         'ALLEMAGNE',
@@ -53,7 +58,7 @@ class ParrainageController extends Controller
         'TURQUIE',
     ];
 
-    public function index(): array
+    public function index(): JsonResponse|array
     {
         $parti_id = Parti::partiOfCurrentUser()->id;
         $params = Params::getParams();
@@ -66,6 +71,22 @@ class ParrainageController extends Controller
             ->where("parti_id",$parti_id)
             ->groupBy('region')
             ->get();
+        $parti = Parti::partiOfCurrentUser();
+        $has_endpoint = $parti->hasEndpoint();
+
+        if ($has_endpoint) {
+            $url = $parti->end_point."parrainages";
+            $response = Http::get($url);
+            if ($response->successful()) {
+                $dataFromApi = json_decode($response->body(), true);
+                $rapports["total_saisi"] = $dataFromApi["total_saisi"];
+                $rapports["regions"] = $dataFromApi["regions"];
+
+
+            } else {
+                return response()->json([],500);
+            }
+        }
 
         return $rapports;
     }
@@ -75,11 +96,12 @@ class ParrainageController extends Controller
      *
      * @param StoreParrainageRequest $request
      * @return JsonResponse
+     * @throws RequestException
      */
     public function store(StoreParrainageRequest $request)
     {
         //
-        $data = $request->input();
+        $data = $request->validated();
         $parti = Parti::partiOfCurrentUser();
         $haveAccessToProValidation = $parti->formule->has_pro_validation;
         $data["parti_id"] = $parti->id;
@@ -115,14 +137,44 @@ class ParrainageController extends Controller
             $validationResult = self::proValidation(new Parrainage($data),$electeur);
             if($validationResult["all_fields_match"]){
 
-                return Parrainage::create($data);
+                $parti = Parti::partiOfCurrentUser();
+                $has_endpoint = $parti->hasEndpoint();
+
+                if ($has_endpoint) {
+                    $url = $parti->end_point."parrainages";
+                    try {
+                        $data["user_id"] = request()->user()->id;
+                        $response = Http::withHeaders(self::jsonHeaders)
+                            ->post($url, $data);
+                        $response->throw();
+                        if ($response->successful()) {
+                            return response()->json(json_decode($response->body(), true));
+                        } else {
+                            return response()->json(["message" => "Une erreur", "detail" => json_decode($response->body(), true)], 500);
+
+                        }
+                    } catch (RequestException $e) {
+                        if ($e->response->unprocessableEntity()){
+                            return response()->json(json_decode($e->response->body(), true), 422);
+
+                        }else
+                        return response()->json(["message" => "Une erreur from Polex api", "detail" => json_decode($e->response->body(), true)], 500);
+
+                    }
+                }else{
+                    return  Parrainage::create($data);
+
+                }
 
             }else{
                 return  new JsonResponse(["message"=>"pro_validation_failed", "errors"=>$validationResult], 422);
             }
 
         }
+
+
         return  Parrainage::create($data);
+
     }
 
     /**
@@ -141,14 +193,34 @@ class ParrainageController extends Controller
      * Update the specified resource in storage.
      *
      * @param UpdateParrainageRequest $request
-     * @param Parrainage $parrainage
-     * @return Parrainage
+     * @return Parrainage|array|JsonResponse|object
      */
-    public function update(UpdateParrainageRequest $request, Parrainage $parrainage): Parrainage
+    public function update(UpdateParrainageRequest $request, $num_electeur)
     {
         //
-         Parrainage::update($request->validated());
-         return  $parrainage;
+        try {
+            $url = Parti::partiOfCurrentUser()->end_point . "parrainages/update/" . $num_electeur;
+            $response = Http::post($url, $request->input());
+            $response->throw();
+            if ($response->successful()) {
+                return $response->object();
+
+            }
+        } catch (RequestException $e) {
+
+                if ($e->response->notFound()) {
+                    return \response()->json(["message" => "Electeur non trouvé"], 404);
+                }else{
+                    Log::error("Une erreur s'est produite au niveau de l'api ".$e->getMessage());
+                    return \response()->json(["message" => "Une erreur s'est produite au niveau de l'api"], 404);
+
+                }
+
+
+        }
+
+        return $request;
+
     }
 
     /**
@@ -196,7 +268,7 @@ class ParrainageController extends Controller
         return in_array($region,self::REGIONS_DIASPORA);
     }
 
-    public function bulkInsertFromExcel(): JsonResponse
+    public function bulkInsertFromExcel()
     {
 
         $data = request()->json('data');
@@ -204,9 +276,34 @@ class ParrainageController extends Controller
             $parti_id = Parti::partiOfCurrentUser()->id;
             $item["parti_id"] = $parti_id;
             $item["created_at"] = Carbon::now();
+
             return $item;
         }, $data);
-        Parrainage::insertOrIgnore($dataWithoutDiscriminantFieldName);
+
+        $parti = Parti::partiOfCurrentUser();
+        $has_endpoint = $parti->hasEndpoint();
+
+        if ($has_endpoint) {
+            $url = $parti->end_point.'parrainages/excel';
+            $dataWithoutDiscriminantFieldName = array_map(function ($item) {
+                $item["user_id"] = request()->user()->id;
+                return $item;
+            }, $dataWithoutDiscriminantFieldName);
+            $response = Http::withHeaders([
+                self::jsonHeaders
+            ])->post($url,["data"=>$dataWithoutDiscriminantFieldName]);
+            if ($response->successful()){
+                return response()->json(json_decode($response->body(),true));
+            }else{
+                return response()->json(["message"=>"Une erreur","detail"=>$response->body()],500);
+
+            }
+
+        }else{
+
+            Parrainage::insertOrIgnore($dataWithoutDiscriminantFieldName);
+        }
+
 
         return response()->json(["total_inserted"=>count($data)]);
 
@@ -309,6 +406,35 @@ class ParrainageController extends Controller
             return response()->json(['message'=>'not found'],404);
         }
         $electeur->date_expir = null;
+        $electeur->region = ParrainageController::isDiasporaRegion($electeur->region)
+            ?
+            "DIASPORA": $electeur->region;
+        if (Parti::partiOfCurrentUser()->created_at->isAfter("2023-06-17")){
+            $parti = Parti::partiOfCurrentUser();
+            $has_endpoint = $parti->hasEndpoint();
+
+            if ($has_endpoint) {
+                $url = $parti->end_point."parrainages/find/".$param;
+                $response = Http::get($url);
+                if ($response->successful()) {
+                    return  ["already_exists"=>true, "electeur"=>$response->object()];
+
+                } else {
+                    if ($response->notFound()){
+                        return ["already_exists"=>false, "electeur"=>$electeur];
+                    }else{
+                    return response()->json([],500);
+                    }
+                }
+            }else{
+                $parrainage = Parrainage::where("nin",$param)
+                    ->orWhere("num_electeur",$param)
+                    ->first();
+                return ["already_exists"=>$parrainage != null, "electeur"=>$electeur];
+
+            }
+
+        }
         return $electeur;
     }
 }

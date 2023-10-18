@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Controllers\ParrainageController;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -16,5 +17,11 @@ use Illuminate\Database\Eloquent\Model;
 class Electeur extends Model
 {
     use HasFactory;
-    protected $fillable = ["prenom","nom","nin","num_electeur","taille","date_naiss","lieu_vote"];
+    protected $fillable = ["prenom","nom","nin","num_electeur","taille","date_naiss","lieu_vote","region"];
+    public function getRegionAttribute($value){
+        return  ParrainageController::isDiasporaRegion($value)
+            ?
+            "DIASPORA": $value;
+
+    }
 }

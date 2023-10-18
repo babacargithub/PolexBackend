@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Controllers\ParrainageController;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreParrainageRequest extends FormRequest
@@ -26,9 +27,18 @@ class StoreParrainageRequest extends FormRequest
             "prenom"=>"required|min:3|max:50",
             "nom"=>"required|min:2|max:20",
             "nin"=>"required|digits_between: 13,14",
-            "num_electeur"=>"required|digits_between: 9,10",
-//            "bureau"=>"required|integer",
+            "num_electeur"=>"required|digits:9",
+            "date_expir"=>"required|string",
             "region"=>"required|string",
         ];
+    }
+    public function transform(): void
+    {
+        $data = $this->all();
+
+        // Transform the 'field_name' input, for example, to uppercase
+        $data['region'] = ParrainageController::isDiasporaRegion($data["region"]) ? "DIASPORA": $data["region"];
+
+        $this->replace($data);
     }
 }

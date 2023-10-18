@@ -8,14 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * @property Formule $formule
+ * @property Carbon $created_at
+ * @property string $end_point
  */
 class Parti extends Model
 {
     use CrudTrait;
+
     protected $fillable = ["nom","code","formule_id"];
 
     public static function partiOfCurrentUser() : Parti
@@ -50,6 +54,11 @@ class Parti extends Model
             ->withPivot("disabled");
 
     }
+    public function hasEndpoint(): bool{
+
+        return isset($this->attributes["end_point"]) && $this->attributes["end_point"] != null;
+    }
+    protected $casts = ["created_at"=>"datetime"];
 
     use HasFactory;
 }

@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -142,7 +143,19 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::get('parrainages/region/{region}', function ($region){
 
         $parti_id = Parti::partiOfCurrentUser()->id;
-        return Parrainage::wherePartiId($parti_id)->whereRegion($region)->orderBy("prenom")->paginate(1000);
+        //TODO change
+        $has_endpoint = true;
+        if ($has_endpoint) {
+            $url = "http://localhost:8888/Polex/PolexApi/public/api/parrainages/region/" . $region . "?page=" . request()->query('page');
+            $response = Http::withHeaders(ParrainageController::jsonHeaders)
+                ->get($url);
+            if ($response->successful()) {
+                return json_decode($response->body());
+            } else {
+                return response()->json(["une erreur s'est produite !"], 500);
+            }
+        }
+        return Parrainage::wherePartiId($parti_id)->whereRegion($region)->orderBy("created_at")->paginate(1000);
     });
     Route::get('parrainages/autocomplete/{param}',[ParrainageController::class,'findForAutocomplete']);
     Route::post('parrainages/excel', [ParrainageController::class,"bulkInsertFromExcel"])
@@ -151,6 +164,8 @@ Route::middleware(["auth:sanctum"])->group(function() {
         ->withoutMiddleware("throttle:api");
     Route::post('parrainages/bulk_correction',[ParrainageController::class,'bulkCorrection'])
         ->withoutMiddleware("throttle:api");
+    Route::put('parrainages/update/{num_electeur}',[ParrainageController::class,'update']);
+
     Route::apiResource("parrainages", ParrainageController::class);
 
 });
