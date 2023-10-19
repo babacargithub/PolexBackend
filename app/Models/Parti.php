@@ -20,7 +20,7 @@ class Parti extends Model
 {
     use CrudTrait;
 
-    protected $fillable = ["nom","code","formule_id"];
+    protected $fillable = ["nom","code","formule_id","end_point"];
 
     public static function partiOfCurrentUser() : Parti
     {

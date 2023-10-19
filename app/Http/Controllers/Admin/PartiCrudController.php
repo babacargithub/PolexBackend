@@ -88,6 +88,10 @@ class PartiCrudController extends CrudController
                 return $query->orderBy('prix', 'ASC')->get();
             }), //  you can use this to filter the results show in the select
         ]);
+        $this->crud->addField([
+            'name'=>"end_point",
+            'label'     => "Url du serveur",
+            'text'      => 'select',]);
 
 
         /**

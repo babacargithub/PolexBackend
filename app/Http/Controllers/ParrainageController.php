@@ -60,6 +60,9 @@ class ParrainageController extends Controller
 
     public function index(): JsonResponse|array
     {
+        if (!request()->user()->hasRole("owner")){
+            abort(403,"Accès aux rapportsn refusé !");
+        }
         $parti_id = Parti::partiOfCurrentUser()->id;
         $params = Params::getParams();
         $rapports["max_count"] = $params->max_count;
