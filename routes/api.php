@@ -143,10 +143,9 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::get('parrainages/region/{region}', function ($region){
 
         $parti_id = Parti::partiOfCurrentUser()->id;
-        //TODO change
-        $has_endpoint = true;
-        if ($has_endpoint) {
-            $url = "http://localhost:8888/Polex/PolexApi/public/api/parrainages/region/" . $region . "?page=" . request()->query('page');
+
+        if (Parti::partiOfCurrentUser()->hasEndpoint()) {
+            $url = Parti::partiOfCurrentUser()->end_point."parrainages/region/" . $region . "?page=" . request()->query('page');
             $response = Http::withHeaders(ParrainageController::jsonHeaders)
                 ->get($url);
             if ($response->successful()) {
