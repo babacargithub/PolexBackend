@@ -24,9 +24,9 @@ class StoreParrainageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "prenom"=>"required|min:3|max:50",
+            "prenom"=>"required|min:2|max:50",
             "nom"=>"required|min:2|max:20",
-            "nin"=>"required|digits_between: 13,14",
+            "nin"=>"required||min:13|max:14",
             "num_electeur"=>"required|digits:9",
             "date_expir"=>"required|string",
             "region"=>"required|string",

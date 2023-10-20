@@ -8,6 +8,7 @@ use App\Models\Electeur;
 use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -61,35 +62,59 @@ class ParrainageController extends Controller
     public function index(): JsonResponse|array
     {
         if (!request()->user()->hasRole("owner")){
-            abort(403,"Accès aux rapportsn refusé !");
+            abort(403,"Accès aux rapports refusé !");
         }
         $parti_id = Parti::partiOfCurrentUser()->id;
         $params = Params::getParams();
         $rapports["max_count"] = $params->max_count;
         $rapports["min_count"] = $params->min_count;
-        $total_saisi = Parrainage::wherePartiId($parti_id)->count();
-        $rapports["total_saisi"] = $total_saisi;
-        $rapports["manquant"] = $params->min_count - $total_saisi;
-        $rapports["regions"] = Parrainage::select('region as nom', DB::raw('count(*) as nombre'))
-            ->where("parti_id",$parti_id)
-            ->groupBy('region')
-            ->get();
+
+
+
         $parti = Parti::partiOfCurrentUser();
         $has_endpoint = $parti->hasEndpoint();
 
         if ($has_endpoint) {
-            $url = $parti->end_point."parrainages";
-            $response = Http::get($url);
-            if ($response->successful()) {
-                $dataFromApi = json_decode($response->body(), true);
-                $rapports["total_saisi"] = $dataFromApi["total_saisi"];
-                $rapports["regions"] = $dataFromApi["regions"];
+            try {
+                $url = $parti->end_point . "parrainages";
+                $response = Http::get($url);
+                $response->throw();
+                if ($response->successful()) {
+                    $dataFromApi = json_decode($response->body(), true);
+                    $rapports = array_merge($rapports, $dataFromApi);
+                    $users = [];
+                    foreach ($rapports["users"] as  $userItem) {
+                        if ($userItem["user"] != null) {
+                            $user = User::whereId($userItem["user"])->first();
+                            $userItem["user"] = $user != null ? $user->name : null;
+                            $users[] = $userItem;
+                        }
+                    }
+                    $rapports["users"] = $users;
 
 
-            } else {
-                return response()->json([],500);
+
+                }
+            } catch (RequestException $e) {
+                Log::error($e->getMessage());
+                    return response()->json(["une erreur s'est produite ".$e->response->body()], 500);
+
             }
+        }else{
+            $total_saisi = Parrainage::wherePartiId($parti_id)->count();
+            $rapports["total_saisi"] = $total_saisi;
+            $rapports["regions"] = Parrainage::select('region as nom', DB::raw('count(*) as nombre'))
+                ->where("parti_id",$parti_id)
+                ->groupBy('region')
+                ->get();
+
+
         }
+        $total_saisi = $rapports["total_saisi"];
+        $rapports["manquant"] = $params->min_count - $total_saisi;
+        $rapports["manquant_min"] = $params->min_count - $total_saisi;
+        $rapports["manquant_max"] = $params->max_count - $total_saisi;
+
 
         return $rapports;
     }
@@ -202,12 +227,22 @@ class ParrainageController extends Controller
     {
         //
         try {
-            $url = Parti::partiOfCurrentUser()->end_point . "parrainages/update/" . $num_electeur;
-            $response = Http::post($url, $request->input());
-            $response->throw();
-            if ($response->successful()) {
-                return $response->object();
+            if ( Parti::partiOfCurrentUser()->hasEndpoint()) {
+                $url = Parti::partiOfCurrentUser()->end_point . "parrainages/update/" . $num_electeur;
+                $response = Http::post($url, $request->input());
+                $response->throw();
+                if ($response->successful()) {
+                    return $response->object();
 
+                }
+            } else {
+                $parrainage = Parrainage::whereNumElecteur($num_electeur)->first();
+                if ($parrainage != null){
+                    $parrainage->update($request->input());
+                }else{
+                    return \response()->json(["message"=>"Parrainage introuvable ! "],404);
+                }
+                return  $parrainage;
             }
         } catch (RequestException $e) {
 
@@ -247,17 +282,17 @@ class ParrainageController extends Controller
              $result = [
                 "has_match"=>true,
                 "all_fields_match"=>
-                    strtolower($parrainage->prenom) == strtolower($electeur->prenom)
-                    && strtolower($parrainage->nom) == strtolower($electeur->nom)
-                    && $parrainage->nin == $electeur->nin
-                    && $parrainage->num_electeur == $electeur->num_electeur
-                    && (strtolower($parrainage->region) == strtolower($electeur->region) || (self::isDiasporaRegion($electeur->region))),
+                    strtolower(trim($parrainage->prenom)) == strtolower(trim($electeur->prenom))
+                    && strtolower(trim($parrainage->nom)) == strtolower(trim($electeur->nom))
+                    && trim($parrainage->nin) == trim($electeur->nin)
+                    && trim($parrainage->num_electeur) == trim($electeur->num_electeur)
+                    && (strtolower(trim($parrainage->region)) == strtolower(trim($electeur->region)) || (self::isDiasporaRegion($electeur->region))),
                 "fields"=>[
-                    ["label"=>"PRENOM ".$parrainage->prenom, "matched"=> strtolower($parrainage->prenom) == strtolower($electeur->prenom)],
-                    ["label"=>"NOM ".$parrainage->nom, "matched"=> strtolower($parrainage->nom) == strtolower($electeur->nom)],
-                    ["label"=>"NIN ".$parrainage->nin, "matched"=>strtolower($parrainage->nin) == strtolower($electeur->nin)],
-                    ["label"=>"N° Electeur ".$parrainage->num_electeur, "matched"=> intval($parrainage->num_electeur) == intval($electeur->num_electeur)],
-                    ["label"=>"REGION ".$parrainage->region, "matched"=> (strtolower($parrainage->region) == strtolower($electeur->region) || ($isDiasporaElecteur && self::isDiasporaRegion($electeur->region)))]
+                    ["label"=>"PRENOM ".$parrainage->prenom, "matched"=> strtolower(trim($parrainage->prenom)) == strtolower(trim($electeur->prenom))],
+                    ["label"=>"NOM ".$parrainage->nom, "matched"=> strtolower(trim($parrainage->nom)) == strtolower(trim($electeur->nom))],
+                    ["label"=>"NIN ".$parrainage->nin, "matched"=>strtolower(trim($parrainage->nin)) == strtolower(trim($electeur->nin))],
+                    ["label"=>"N° Electeur ".$parrainage->num_electeur, "matched"=> intval($parrainage->num_electeur) == intval(trim($electeur->num_electeur))],
+                    ["label"=>"REGION ".$parrainage->region, "matched"=> (strtolower($parrainage->region) == strtolower(trim($electeur->region)) || ($isDiasporaElecteur && self::isDiasporaRegion($electeur->region)))]
                 ]
 
             ];

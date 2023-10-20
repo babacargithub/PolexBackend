@@ -24,10 +24,10 @@ class UpdateParrainageRequest extends FormRequest
     public function rules()
     {
         return [
-            "prenom"=>"min:3|max:50",
+            "prenom"=>"min:2|max:50",
             "nom"=>"min:2|max:20",
-            "nin"=>"digits_between: 13,14",
-            "num_electeur"=>"digits_between: 9,10",
+            "nin"=>"min:13|max:14",
+            "num_electeur"=>"digits:9",
             "date_expir"=>"string",
             "region"=>"string",
         ];
