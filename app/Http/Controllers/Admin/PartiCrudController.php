@@ -119,7 +119,7 @@ class PartiCrudController extends CrudController
         $userAccount->name = $parti->nom;
         $userAccount->email = str_replace(' ','_',strtolower($parti->nom)).'@polex.tech';
         $userAccount->password = Hash::make("0000");
-        $userAccount->assignRole("owner");
+        $userAccount->assignRole(["owner","writer"]);
         $userAccount->save();
         $parti->user()->associate($userAccount);
         $parti->save();

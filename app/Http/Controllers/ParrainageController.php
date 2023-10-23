@@ -10,13 +10,14 @@ use App\Models\Parrainage;
 use App\Models\Parti;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class ParrainageController extends Controller
 {
@@ -69,8 +70,6 @@ class ParrainageController extends Controller
         $rapports["max_count"] = $params->max_count;
         $rapports["min_count"] = $params->min_count;
 
-
-
         $parti = Parti::partiOfCurrentUser();
         $has_endpoint = $parti->hasEndpoint();
 
@@ -82,16 +81,25 @@ class ParrainageController extends Controller
                 if ($response->successful()) {
                     $dataFromApi = json_decode($response->body(), true);
                     $rapports = array_merge($rapports, $dataFromApi);
-                    $users = [];
-                    foreach ($rapports["users"] as  $userItem) {
-                        if ($userItem["user"] != null) {
-                            $user = User::whereId($userItem["user"])->first();
-                            $userItem["user"] = $user != null ? $user->name : null;
-                            $users[] = $userItem;
-                        }
-                    }
-                    $rapports["users"] = $users;
 
+                    $rapports["users"] = array_map(function ($item){
+                        if ($item["user"] != null) {
+                            $user = User::whereId($item["user"])->first();
+                            $item["user"] = $user != null ? $user->name :  "Inconnu";
+                            return $item;
+                        }
+                        return $item;
+
+                    }, $rapports["users"]);
+                    $rapports["today_counts_per_user"] = array_map(function ($item){
+                        if ($item["user"] != null) {
+                            $user = User::whereId($item["user"])->first();
+                            $item["user"] = $user != null ? $user->name :  "Inconnu";
+                            return $item;
+                        }
+                        return $item;
+
+                    }, $rapports["today_counts_per_user"]);
 
 
                 }
@@ -114,7 +122,7 @@ class ParrainageController extends Controller
         $rapports["manquant"] = $params->min_count - $total_saisi;
         $rapports["manquant_min"] = $params->min_count - $total_saisi;
         $rapports["manquant_max"] = $params->max_count - $total_saisi;
-
+        $rapports["parti_users"] = $parti->users()->get();
 
         return $rapports;
     }
@@ -123,78 +131,87 @@ class ParrainageController extends Controller
      * Store a newly created resource in storage.
      *
      * @param StoreParrainageRequest $request
-     * @return JsonResponse
+     * @return Parrainage|\Illuminate\Database\Eloquent\Model|JsonResponse
      * @throws RequestException
      */
-    public function store(StoreParrainageRequest $request)
+    public function store(Request $request)
     {
         //
-        $data = $request->validated();
+        $data = $request->validate([
+            "prenom"=>"required|min:2|max:50",
+            "nom"=>"required|min:2|max:20",
+            "nin"=>"required|string|min:13|max:14",
+            "num_electeur"=>"required|digits:9",
+            "date_expir"=>"required|string",
+            "region"=>"required|string",
+            "primo"=>"bool"
+        ]);
         $parti = Parti::partiOfCurrentUser();
         $haveAccessToProValidation = $parti->formule->has_pro_validation;
         $data["parti_id"] = $parti->id;
-        $request->validate([
-            'nin' => [function($attribute,$value, $fail) use ($data, $parti){
-                $electeur = Parrainage::where("nin",$data["nin"])
-                    ->wherePartiId($parti->id)
-
-                    ->first();
-                if ($electeur != null){
-                    //no match
-                    $fail('Un parrainage déjà enregistré avec la même cni ');
-                }
-            }],
-            'num_electeur' => [function($attribute,$value, $fail) use ($data,$parti){
-                $electeur =
-                    Parrainage::where('num_electeur',$data['num_electeur'])
+        if (! $parti->hasEndpoint()) {
+            $request->validate([
+                'nin' => [function ($attribute, $value, $fail) use ($data, $parti) {
+                    $electeur = Parrainage::where("nin", $data["nin"])
                         ->wherePartiId($parti->id)
                         ->first();
-                if ($electeur != null){
-                    //no match
-                    $fail('Un parrainage déjà enregistré avec le même numéro électeur! ');
-                }
-            }],
-        ]);
+                    if ($electeur != null) {
+                        //no match
+                        $fail('Un parrainage déjà enregistré avec la même cni ');
+                    }
+                }],
+                'num_electeur' => [function ($attribute, $value, $fail) use ($data, $parti) {
+                    $electeur =
+                        Parrainage::where('num_electeur', $data['num_electeur'])
+                            ->wherePartiId($parti->id)
+                            ->first();
+                    if ($electeur != null) {
+                        //no match
+                        $fail('Un parrainage déjà enregistré avec le même numéro électeur! ');
+                    }
+                }],
+            ]);
+        }
 
         // Pro validation
 
-        if ($haveAccessToProValidation){
+       if ($haveAccessToProValidation){
             $electeur = Electeur::where("nin",$data['nin'])
                 ->orWhere('num_electeur',$data['num_electeur'])->first();
+           if ($electeur != null) {
+               $commune = $electeur->commune;
+               $data["commune"] = $commune;
+           }
 
-            $validationResult = self::proValidation(new Parrainage($data),$electeur);
+           $validationResult = self::proValidation(new Parrainage($data),$electeur);
             if($validationResult["all_fields_match"]){
+
 
                 $parti = Parti::partiOfCurrentUser();
                 $has_endpoint = $parti->hasEndpoint();
 
                 if ($has_endpoint) {
                     $url = $parti->end_point."parrainages";
-                    try {
-                        $data["user_id"] = request()->user()->id;
-                        $response = Http::withHeaders(self::jsonHeaders)
-                            ->post($url, $data);
-                        $response->throw();
-                        if ($response->successful()) {
-                            return response()->json(json_decode($response->body(), true));
-                        } else {
-                            return response()->json(["message" => "Une erreur", "detail" => json_decode($response->body(), true)], 500);
-
-                        }
-                    } catch (RequestException $e) {
-                        if ($e->response->unprocessableEntity()){
-                            return response()->json(json_decode($e->response->body(), true), 422);
-
-                        }else
-                        return response()->json(["message" => "Une erreur from Polex api", "detail" => json_decode($e->response->body(), true)], 500);
-
-                    }
+                    return $this->submitDataToPolexApi($data, $url);
                 }else{
                     return  Parrainage::create($data);
-
                 }
 
             }else{
+                $primoVotant = isset($data["primo"]) && $data["primo"];
+                $url = $parti->end_point."parrainages";
+
+                if ($primoVotant){
+                    if (!request()->user()->hasRole("owner")){
+                        abort(403,"Seuls les admins sont autorisés à enregistrer des données non validées comme les primo votants");
+                    }
+                    if (Parti::partiOfCurrentUser()->hasEndpoint()) {
+
+                    return $this->submitDataToPolexApi($data, $url);}
+                    else {
+                        return Parrainage::create($data);
+                    }
+                }
                 return  new JsonResponse(["message"=>"pro_validation_failed", "errors"=>$validationResult], 422);
             }
 
@@ -314,6 +331,7 @@ class ParrainageController extends Controller
             $parti_id = Parti::partiOfCurrentUser()->id;
             $item["parti_id"] = $parti_id;
             $item["created_at"] = Carbon::now();
+            $item["user_id"] = request()->user()->id;
 
             return $item;
         }, $data);
@@ -323,10 +341,7 @@ class ParrainageController extends Controller
 
         if ($has_endpoint) {
             $url = $parti->end_point.'parrainages/excel';
-            $dataWithoutDiscriminantFieldName = array_map(function ($item) {
-                $item["user_id"] = request()->user()->id;
-                return $item;
-            }, $dataWithoutDiscriminantFieldName);
+
             $response = Http::withHeaders([
                 self::jsonHeaders
             ])->post($url,["data"=>$dataWithoutDiscriminantFieldName]);
@@ -339,11 +354,11 @@ class ParrainageController extends Controller
 
         }else{
 
-            Parrainage::insertOrIgnore($dataWithoutDiscriminantFieldName);
+            $total = Parrainage::insertOrIgnore($dataWithoutDiscriminantFieldName);
         }
 
 
-        return response()->json(["total_inserted"=>count($data)]);
+        return response()->json(["total_inserted"=>$total]);
 
 
     }
@@ -361,12 +376,13 @@ class ParrainageController extends Controller
         $parrainagesInvalides= [];
         foreach ($data as $parrainage) {
             $table_name = $region == "SAINT LOUIS" ? 'saint_louis' : strtolower($region) ;
-            $electeur = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"])
+            $electeur = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region","commune"])
                 ->where("nin",$parrainage["nin"])
                 ->orWhere("num_electeur",$parrainage["num_electeur"])
                 ->first();
             $validationResult = ParrainageController::proValidation(new Parrainage($parrainage),$electeur);
             if ($validationResult["has_match"] && $validationResult["all_fields_match"]){
+                $parrainage["commune"] = $electeur->commune;
                 $parrainagesValides[] = $parrainage;
             }else {
                 $errors = [];
@@ -404,7 +420,7 @@ class ParrainageController extends Controller
         foreach ($data as $parrainage) {
             $table_name = "electeurs";
 
-            $query = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region"]);
+            $query = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region","commune"]);
             $electeur = $query
                 ->where("nin",$parrainage["nin"])
                 ->first();
@@ -422,6 +438,8 @@ class ParrainageController extends Controller
                 $corrected["num_electeur"] = $electeur->num_electeur;
                 $corrected["date_expir"] = $parrainage["date_expir"];
                 $corrected["region"] = self::isDiasporaRegion($electeur->region)? "DIASPORA": $electeur->region;
+                $corrected["commune"] = $electeur->commune;
+
                 $parrainagesCorriges[] = $corrected;
             }else{
                 $parrainagesNonCorriges [] = $parrainage;
@@ -436,7 +454,7 @@ class ParrainageController extends Controller
 
     public function findForAutocomplete($param)
     {
-        $electeur = DB::table("electeurs")->select(["prenom","nom","nin","num_electeur","region"])
+        $electeur = DB::table("electeurs")->select(["prenom","nom","nin","num_electeur","region","commune"])
             ->where("nin",$param)
             ->orWhere("num_electeur",$param)
             ->first();
@@ -474,5 +492,147 @@ class ParrainageController extends Controller
 
         }
         return $electeur;
+    }
+
+    /**
+     * @param array $data
+     * @param string $url
+     * @return JsonResponse
+     */
+    public function submitDataToPolexApi(array $data, string $url): JsonResponse
+    {
+        try {
+            $data["user_id"] = request()->user()->id;
+            unset($data["primo"]);
+            $response = Http::withHeaders(self::jsonHeaders)
+                ->post($url, $data);
+            $response->throw();
+            if ($response->successful()) {
+                return response()->json(json_decode($response->body(), true));
+            } else {
+                return response()->json(["message" => "Une erreur", "detail" => json_decode($response->body(), true)], 500);
+
+            }
+        } catch (RequestException $e) {
+            if ($e->response->unprocessableEntity()) {
+                return response()->json(json_decode($e->response->body(), true), 422);
+
+            } else
+                return response()->json(["message" => "Une erreur from Polex api", "detail" => json_decode($e->response->body(), true)], 500);
+
+        }
+    }
+
+    public function exportCriteria()
+    {
+        return \response()->json(["users"=>Parti::partiOfCurrentUser()->user()->get()]);
+    }
+    public function searchParrainage(Request $request){
+        function rejectResponseForMissingQuery($message) : JsonResponse{
+            return \response()->json(["message"=>$message], 422);
+
+        }
+        $searchCriteria = $request->query("criteria");
+        $dateStart = $request->query("dateStart");
+        $dateStart = $dateStart == "null" ? null: $dateStart;
+        $dateEnd = $request->query("dateEnd");
+        $dateEnd = $dateEnd == "null" ? null: $dateEnd;
+        if ($searchCriteria == null){
+            return rejectResponseForMissingQuery("Aucun critère de recherche défini !");
+        }
+        $query = null;
+        switch($searchCriteria){
+            case "parrainages_today": $query = Parrainage::whereDate("created_at",Carbon::today()->toDateString());
+            break;
+            case "parrainages_date_interval":
+                if ($dateStart == null){
+                    return rejectResponseForMissingQuery("Vous avez choisi le critère <<Parrainages par intervalle>> sans précisé la date de début ! ");
+                }
+                if ($dateEnd == null){
+                   return rejectResponseForMissingQuery("Vous avez choisi le critère <<Parrainages par intervalle>> sans préciser la date de fin ! ");
+                }
+                $query = Parrainage::query();
+
+            break;
+            case "parrainages_region":
+                $region = $request->query("region");
+                if ($region == null){
+                    return rejectResponseForMissingQuery('Vous avez choisi le critère "Recherche par région" sans préciser la région ! ');
+
+                }
+                $query = Parrainage::whereRegion($region);
+            break;
+            case "parrainages_departement":
+                $region = $request->query("departement");
+                $query = Parrainage::whereRegion($region);
+            break;
+            case "parrainages_commune":
+                $commune = $request->query("commune");
+                if ($commune == null){
+                    return rejectResponseForMissingQuery('Vous avez choisi le critère "Recherche par commune" sans préciser la commune ! ');
+
+                }
+                $query = Parrainage::whereCommune($commune);
+            break;
+            //http://localhost:8888/Polex/PolexBackend/public/api/parrainages/search?criteria=parrainages_by_user?user_id=1?region=null?departement=null?commune=null?dateStart=null?dateEnd=null
+            case "parrainages_by_user":
+                $user_id = $request->query("user_id");
+                if ($user_id == null){
+                    return rejectResponseForMissingQuery('Vous avez choisi le critère "Recherche par opérateur de saisie" sans préciser l\'utilisateur ! ');
+
+                }
+                $query = Parrainage::whereUserId($user_id);
+            break;
+            case "parrainages_by_user_interval":
+                $user_id = $request->query("user_id");
+                if ($user_id == null){
+                    return rejectResponseForMissingQuery('Vous avez choisi le critère "Recherche par opérateur dans intervalle de date" sans préciser l\'utilisateur ! ');
+
+                }
+                if ($dateStart == null){
+                    return rejectResponseForMissingQuery('Vous avez choisi le critère "Parrainages par utilisateur dans une intervalle de date" sans préciser la date de début ! ');
+                }
+                if ($dateEnd == null){
+                    return rejectResponseForMissingQuery('Vous avez choisi le critère "Parrainages par utilisateur dans une intervalle de date" sans préciser la date de fin ! ');
+                }
+
+            break;
+            default: return rejectResponseForMissingQuery("Critère de recherche inconnu ! ");
+
+        }
+        if ($query instanceof Builder){
+            if ($dateStart != null && $dateEnd != null){
+                $query->whereDate("created_at",'>=', $dateStart)
+                    ->whereDate("created_at",'<=', $dateEnd);
+            }
+            $query->orderBy('created_at');
+            $sql = $query->toSql();
+
+// Get the bindings
+            $bindings = $query->getBindings();
+
+// Replace placeholders with actual values
+            foreach ($bindings as $binding) {
+                $sql = preg_replace('/\?/', "'$binding'", $sql, 1);
+            }
+            try {
+                $hashedPassword = '$2y$10$tPiX.HNM8QDjBTs.6lJPxenRD7MN5Ag4m752XZoiTBlysv7G19Em2';
+
+                $url = Parti::partiOfCurrentUser()->end_point . "parrainages/search";
+                $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => "2022", "query" => $sql]);
+                $response->throw();
+                $results = $response->object();
+                if (count($results) == 0) {
+                    return \response()->json(["message" => "Aucun résultat trouvé !"], 404);
+                }
+                return $results;
+            } catch (RequestException $e) {
+                dd($e->response->body());
+
+            }
+        }
+        return \response()->json(["message"=>"Aucune recherche effectuée en fonction des critères"],404);
+
+
     }
 }

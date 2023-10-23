@@ -26,7 +26,7 @@ class UpdateParrainageRequest extends FormRequest
         return [
             "prenom"=>"min:2|max:50",
             "nom"=>"min:2|max:20",
-            "nin"=>"min:13|max:14",
+            "nin"=>"string",
             "num_electeur"=>"digits:9",
             "date_expir"=>"string",
             "region"=>"string",

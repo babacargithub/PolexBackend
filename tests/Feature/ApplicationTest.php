@@ -5,7 +5,7 @@ namespace Tests\Feature;
 // use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class ExampleTest extends TestCase
+class ApplicationTest extends TestCase
 {
     /**
      * A basic test example.
@@ -18,4 +18,5 @@ class ExampleTest extends TestCase
 
         $response->assertStatus(302);
     }
+
 }

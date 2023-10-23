@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ParrainageController;
+use App\Http\Controllers\PartiController;
 use App\Models\Company;
 use App\Models\Params;
 use App\Models\Parrainage;
@@ -8,6 +9,8 @@ use App\Models\Parti;
 use App\Models\User;
 use App\Policies\RoleNames;
 use Carbon\Carbon;
+use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -28,9 +31,9 @@ use Illuminate\Support\Facades\Route;
 
 
 /**
- * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Http\Response
+ * @return Application|ResponseFactory|\Illuminate\Http\Response
  */
-function loginResponse(): \Illuminate\Contracts\Routing\ResponseFactory|\Illuminate\Contracts\Foundation\Application|\Illuminate\Http\Response
+function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
 {
     $token = request()->user()->createToken("name", [], Carbon::now()->addDay());
 //        $parti  = Parti::where('user_id', request()->user()->id)->first();
@@ -38,7 +41,6 @@ function loginResponse(): \Illuminate\Contracts\Routing\ResponseFactory|\Illumin
     $params = Params::getParams();
 
     $parti["has_pro"] = $parti->formule->has_pro_validation;
-    //TODO make dynamic this 2 lines
     $parti["has_correction"] = true;
     $parti["has_autocomplete"] = true;
 
@@ -75,14 +77,14 @@ Route::post('/login', function (Request $request){
         'password' => ['required'],
     ]);
     if (Auth::attempt($credentials)) {
-       /* $request->validate([
+        $request->validate([
             'email' => [function($attribute,$value, $fail){
                 if (request()->user()->disabled){
                     $fail("Compte désactivé !");
                     Auth::logout();
                 }
             }],
-        ]);*/
+        ]);
         return loginResponse();
     }else{
 
@@ -139,6 +141,12 @@ Route::middleware(["auth:sanctum"])->group(function() {
 
         return loginResponse();
     });
+    Route::put("users/{user}/promote",[PartiController::class,"promoteUser"]);
+    Route::put("users/{user}/disable",[PartiController::class,"disableUser"]);
+    Route::delete("users/{user}/delete",[PartiController::class,"deleteUser"]);
+    Route::put("users/{user}/reset_password",[PartiController::class,"resetUserPassword"]);
+    Route::get("export_criteria",[ParrainageController ::class,"exportCriteria"]);
+    Route::get("parrainages/search",[ParrainageController ::class,"searchParrainage"]);
 
     Route::get('parrainages/region/{region}', function ($region){
 

@@ -8,10 +8,34 @@ use Illuminate\Database\Eloquent\Model;
 
 
 /**
- * @Property  string discriminant_field_name
- * @Property  mixed discriminant_field
- * @Property  bool check_discriminant
+ * App\Models\Params
+ *
+ * @Property string discriminant_field_name
+ * @Property mixed discriminant_field
+ * @Property bool check_discriminant
  * @method static first()
+ * @property int $id
+ * @property string $discriminant_field_name
+ * @property mixed $discriminant_field
+ * @property bool $check_discriminant
+ * @property int $min_count
+ * @property int $max_count
+ * @property int $count_per_region
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @method static \Illuminate\Database\Eloquent\Builder|Params newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|Params newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|Params query()
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereCheckDiscriminant($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereCountPerRegion($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereDiscriminantField($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereDiscriminantFieldName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereMaxCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereMinCount($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Params whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 class Params extends Model
 {

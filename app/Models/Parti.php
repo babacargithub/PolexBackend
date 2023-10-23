@@ -12,9 +12,33 @@ use Illuminate\Support\Carbon;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
+ * App\Models\Parti
+ *
  * @property Formule $formule
  * @property Carbon $created_at
  * @property string $end_point
+ * @property int $id
+ * @property string $nom
+ * @property string $code
+ * @property int|null $formule_id
+ * @property Carbon|null $updated_at
+ * @property int|null $user_id
+ * @property-read \App\Models\User|null $user
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\User> $users
+ * @property-read int|null $users_count
+ * @method static \Database\Factories\PartiFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti query()
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereCode($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereEndPoint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereFormuleId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereNom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder|Parti whereUserId($value)
+ * @mixin \Eloquent
  */
 class Parti extends Model
 {

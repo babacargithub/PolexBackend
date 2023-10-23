@@ -5,54 +5,63 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePartiRequest;
 use App\Http\Requests\UpdatePartiRequest;
 use App\Models\Parti;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Hash;
 
 class PartiController extends Controller
 {
+
+
     /**
-     * Display a listing of the resource.
+     * promote a user
      *
-     * @return \Illuminate\Http\Response
+     * @param User $user
+     * @return User
      */
-    public function index()
+    public function promoteUser(User $user)
     {
-        //
+        if (! request()->user()->hasRole('owner')){
+            abort(403,"Vous n'êtes pas autorisé à désigner un admin !");
+        }
+
+        $user->assignRole("owner");
+        $user->save();
+        $user->tokens()->delete();
+
+        return $user;
     }
-
-
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \App\Http\Requests\StorePartiRequest  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function storeUser(StorePartiRequest $request)
+    public function disableUser(User $user): User
     {
         //
+        $validated = request()->validate(["disabled"=>"required|bool"]);
+        if (! request()->user()->hasRole('owner')){
+            abort(403,"Vous n'êtes pas autorisé à désactiver un utilisateur !");
+        }
+        $user->disabled = $validated["disabled"];
+        $user->save();
+        $user->tokens()->delete();
+        return $user;
     }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Parti  $parti
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Parti $parti)
+    public function resetUserPassword(User $user): User
     {
-        //
+        if (! request()->user()->hasRole('owner')){
+            abort(403,"Vous n'êtes pas autorisé à réinitialiser un mot de passe !");
+        }
+        $user->password = Hash::make("0000");
+        $user->save();
+        $user->tokens()->delete();
+        return $user;
     }
-
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \App\Http\Requests\UpdatePartiRequest  $request
-     * @param  \App\Models\Parti  $parti
-     * @return \Illuminate\Http\Response
-     */
-    public function update(UpdatePartiRequest $request, Parti $parti)
+    public function deleteUser(User $user): JsonResponse
     {
-        //
+        if (! request()->user()->hasRole('superadmin')){
+            abort(403,"Vous n'êtes pas autorisé à supprimer un utilisateur ! \n Vous pouvez le désactiver plutôt");
+        }
+        $user->delete();
+
+        return \response()->json(["message"=>"deleted"],204);
     }
 
 
