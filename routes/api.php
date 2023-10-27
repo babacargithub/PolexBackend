@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
+use App\Models\PartiUser;
 use App\Models\User;
 use App\Policies\RoleNames;
 use Carbon\Carbon;
@@ -116,7 +117,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
         $user->assignRole("writer");
         $user->save();
         $parti = Parti::partiOfCurrentUser();
-        $parti_user = new \App\Models\PartiUser();
+        $parti_user = new PartiUser();
         $parti_user->user_id = $user->id;
         $parti_user->parti_id = $parti->id;
         $parti_user->save();
@@ -145,6 +146,8 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::put("users/{user}/disable",[PartiController::class,"disableUser"]);
     Route::delete("users/{user}/delete",[PartiController::class,"deleteUser"]);
     Route::put("users/{user}/reset_password",[PartiController::class,"resetUserPassword"]);
+    Route::put("users/{user}/add_role/{role}",[PartiController::class,"userAddRole"]);
+    Route::put("users/{user}/remove_role/{role}",[PartiController::class,"removeUserRole"]);
     Route::get("export_criteria",[ParrainageController ::class,"exportCriteria"]);
     Route::get("parrainages/search",[ParrainageController ::class,"searchParrainage"]);
 

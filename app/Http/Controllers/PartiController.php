@@ -54,6 +54,28 @@ class PartiController extends Controller
         $user->tokens()->delete();
         return $user;
     }
+    public function userAddRole(User $user, $role): User
+    {
+        if (! request()->user()->hasRole('owner')){
+            abort(403,"Vous n'êtes pas autorisé à réinitialiser changer le rôle d'un utilisateur !");
+        }
+        $user->assignRole($role);
+        $user->save();
+        $user->tokens()->delete();
+
+        return $user;
+    }
+    public function removeUserRole(User $user, $role): User
+    {
+        if (! request()->user()->hasRole('owner')){
+            abort(403,"Vous n'êtes pas autorisé à réinitialiser changer le rôle d'un utilisateur !");
+        }
+        $user->removeRole($role);
+        $user->save();
+        $user->tokens()->delete();
+
+        return $user;
+    }
     public function deleteUser(User $user): JsonResponse
     {
         if (! request()->user()->hasRole('superadmin')){

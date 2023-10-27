@@ -616,7 +616,6 @@ class ParrainageController extends Controller
                 $sql = preg_replace('/\?/', "'$binding'", $sql, 1);
             }
             try {
-                $hashedPassword = '$2y$10$tPiX.HNM8QDjBTs.6lJPxenRD7MN5Ag4m752XZoiTBlysv7G19Em2';
 
                 $url = Parti::partiOfCurrentUser()->end_point . "parrainages/search";
                 $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => "2022", "query" => $sql]);
@@ -627,7 +626,7 @@ class ParrainageController extends Controller
                 }
                 return $results;
             } catch (RequestException $e) {
-                dd($e->response->body());
+               return json_decode($e->response->body());
 
             }
         }

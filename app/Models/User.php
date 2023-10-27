@@ -97,6 +97,10 @@ class User extends Authenticatable
     {
         return $this->hasRole("owner");
     }
-    protected $appends = ["is_owner"];
+    public function getIsSupervisorAttribute(): bool
+    {
+        return $this->hasRole("supervisor");
+    }
+    protected $appends = ["is_owner","is_supervisor"];
 
 }
