@@ -144,7 +144,8 @@ class ParrainageController extends Controller
             "num_electeur"=>"required|digits:9",
             "date_expir"=>"required|string",
             "region"=>"required|string",
-            "primo"=>"bool"
+            "primo"=>"bool",
+            "commune"=>"string"
         ]);
         $parti = Parti::partiOfCurrentUser();
         $haveAccessToProValidation = $parti->formule->has_pro_validation;
@@ -170,6 +171,14 @@ class ParrainageController extends Controller
                         $fail('Un parrainage déjà enregistré avec le même numéro électeur! ');
                     }
                 }],
+                'commune' => [function ($attribute, $value, $fail) use ($data, $parti) {
+                   if (isset($data["primo"]) && $data["primo"]){
+                       if ( ! isset($data["commune"]) || $data["commune"] == null){
+                           $fail('Veuillez renseigner la commune car la case primo votant est cochée ');
+
+                       }
+                   }
+                }],
             ]);
         }
 
@@ -186,7 +195,6 @@ class ParrainageController extends Controller
            $validationResult = self::proValidation(new Parrainage($data),$electeur);
             if($validationResult["all_fields_match"]){
 
-
                 $parti = Parti::partiOfCurrentUser();
                 $has_endpoint = $parti->hasEndpoint();
 
@@ -202,8 +210,8 @@ class ParrainageController extends Controller
                 $url = $parti->end_point."parrainages";
 
                 if ($primoVotant){
-                    if (!request()->user()->hasRole("owner")){
-                        abort(403,"Seuls les admins sont autorisés à enregistrer des données non validées comme les primo votants");
+                    if (!request()->user()->hasRole("owner") && !request()->user()->hasRole("supervisor")){
+                        abort(403,"Seuls les admins ou superviseurs sont autorisés à enregistrer des données non validées comme les primo votants");
                     }
                     if (Parti::partiOfCurrentUser()->hasEndpoint()) {
 
@@ -462,9 +470,9 @@ class ParrainageController extends Controller
             return response()->json(['message'=>'not found'],404);
         }
         $electeur->date_expir = null;
-        $electeur->region = ParrainageController::isDiasporaRegion($electeur->region)
-            ?
-            "DIASPORA": $electeur->region;
+//        $electeur->region = ParrainageController::isDiasporaRegion($electeur->region)
+//            ?
+//            "DIASPORA": $electeur->region;
         if (Parti::partiOfCurrentUser()->created_at->isAfter("2023-06-17")){
             $parti = Parti::partiOfCurrentUser();
             $has_endpoint = $parti->hasEndpoint();
