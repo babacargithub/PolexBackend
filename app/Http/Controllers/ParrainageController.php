@@ -299,7 +299,7 @@ class ParrainageController extends Controller
         return new Response('deleted',204);
     }
     public static function proValidation(Parrainage $parrainage, $electeur = null): array{
-        $isDiasporaElecteur = strtolower($parrainage->region) == "diaspora";
+        $isDiasporaElecteur = strtolower($parrainage->region) == "diaspora" || self::isDiasporaRegion($parrainage->region);
         if ($electeur == null){
             //no match
             return ["has_match"=>false, "all_fields_match"=> false, "fields"=>[]];
@@ -430,13 +430,10 @@ class ParrainageController extends Controller
 
             $query = DB::table($table_name)->select(["prenom","nom","nin","num_electeur","region","commune"]);
             $electeur = $query
-                ->where("nin",$parrainage["nin"])
-                ->first();
-            /** @var $electeur Electeur */
-            if ($electeur == null){
-                $electeur = $query->where("num_electeur",$parrainage["num_electeur"])
+                ->where("nin", trim($parrainage["nin"]))
+                ->orWhere("num_electeur", trim($parrainage["num_electeur"]))
                     ->first();
-            }
+
 
             if ($electeur != null){
                 $corrected  = [];
@@ -445,7 +442,7 @@ class ParrainageController extends Controller
                 $corrected["nin"] = $electeur->nin;
                 $corrected["num_electeur"] = $electeur->num_electeur;
                 $corrected["date_expir"] = $parrainage["date_expir"];
-                $corrected["region"] = self::isDiasporaRegion($electeur->region)? "DIASPORA": $electeur->region;
+                $corrected["region"] =  $electeur->region;
                 $corrected["commune"] = $electeur->commune;
 
                 $parrainagesCorriges[] = $corrected;
@@ -463,8 +460,8 @@ class ParrainageController extends Controller
     public function findForAutocomplete($param)
     {
         $electeur = DB::table("electeurs")->select(["prenom","nom","nin","num_electeur","region","commune"])
-            ->where("nin",$param)
-            ->orWhere("num_electeur",$param)
+            ->where(DB::raw("TRIM(nin)"),$param)
+            ->orWhere(DB::raw("TRIM(num_electeur)"),$param)
             ->first();
         if ($electeur == null){
             return response()->json(['message'=>'not found'],404);
@@ -487,12 +484,13 @@ class ParrainageController extends Controller
                     if ($response->notFound()){
                         return ["already_exists"=>false, "electeur"=>$electeur];
                     }else{
+
                     return response()->json([],500);
                     }
                 }
             }else{
                 $parrainage = Parrainage::where("nin",$param)
-                    ->orWhere("num_electeur",$param)
+                    ->orWhere(DB::raw("TRIM(num_electeur)"),$param)
                     ->first();
                 return ["already_exists"=>$parrainage != null, "electeur"=>$electeur];
 

@@ -16,12 +16,6 @@ use Illuminate\Database\Eloquent\Model;
  * @Property integer $num_electeur
  * @Property string $region
  * @property int $id
- * @property int|null $num_electeur
- * @property string|null $prenom
- * @property string|null $nom
- * @property string|null $nin
- * @property string|null $sexe
- * @property string|null $region
  * @property string|null $departement
  * @property string|null $commune
  * @property string|null $centre
@@ -57,10 +51,10 @@ class Electeur extends Model
 {
     use HasFactory;
     protected $fillable = ["prenom","nom","nin","num_electeur","taille","date_naiss","lieu_vote","region"];
-    public function getRegionAttribute($value){
+   /* public function getRegionAttribute($value){
         return  ParrainageController::isDiasporaRegion($value)
             ?
             "DIASPORA": $value;
 
-    }
+    }*/
 }
