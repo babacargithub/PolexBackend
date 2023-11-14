@@ -150,6 +150,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::put("users/{user}/remove_role/{role}",[PartiController::class,"removeUserRole"]);
     Route::get("export_criteria",[ParrainageController ::class,"exportCriteria"]);
     Route::get("parrainages/search",[ParrainageController ::class,"searchParrainage"]);
+    Route::delete("parrainages/{parrainage_id}/delete",[ParrainageController ::class,"delete"]);
 
     Route::get('parrainages/region/{region}', function ($region){
 

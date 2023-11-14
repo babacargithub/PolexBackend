@@ -309,7 +309,7 @@ class ParrainageController extends Controller
                 "all_fields_match"=>
                     strtolower(trim($parrainage->prenom)) == strtolower(trim($electeur->prenom))
                     && strtolower(trim($parrainage->nom)) == strtolower(trim($electeur->nom))
-                    && trim($parrainage->nin) == trim($electeur->nin)
+                    && ($electeur->nin == null || trim($parrainage->nin) == trim($electeur->nin))
                     && trim($parrainage->num_electeur) == trim($electeur->num_electeur)
                     && (strtolower(trim($parrainage->region)) == strtolower(trim($electeur->region)) || (self::isDiasporaRegion($electeur->region))),
                 "fields"=>[
@@ -627,9 +627,15 @@ class ParrainageController extends Controller
                 $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => "2022", "query" => $sql]);
                 $response->throw();
                 $results = $response->object();
+
                 if (count($results) == 0) {
                     return \response()->json(["message" => "Aucun résultat trouvé !"], 404);
                 }
+                $results = array_map(function ($item){
+                    $user = User::whereId($item->user_id)->first();
+                    $item->saisi_par  = $user != null ? $user->name : 'Inconnu';
+                    return $item;
+                },$results);
                 return $results;
             } catch (RequestException $e) {
                return json_decode($e->response->body());
@@ -638,6 +644,28 @@ class ParrainageController extends Controller
         }
         return \response()->json(["message"=>"Aucune recherche effectuée en fonction des critères"],404);
 
+
+    }
+
+    /**
+     * @throws RequestException
+     */
+    public function delete($parrainage_id)
+    {
+        try {
+            if ( ! \request()->user()->hasRole('owner')){
+                abort(403,"Vous n'etes pas autorisé à supprimer un parrainage !");
+            }
+            $parti = Parti::partiOfCurrentUser();
+            $response = Http::withHeaders(self::jsonHeaders)
+                ->delete($parti->end_point .'parrainages/delete/'. $parrainage_id,["secret" => "2022"]);
+            $response->throw();
+            if ($response->successful()){
+                return \response()->json(['message'=>'deleted'],204);
+            }
+        } catch (RequestException $e) {
+            return response()->json(['message'=>$e->response->body()],500);
+        }
 
     }
 }

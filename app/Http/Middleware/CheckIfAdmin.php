@@ -28,7 +28,7 @@ class CheckIfAdmin
     private function checkIfUserIsAdmin($user)
     {
         // return ($user->is_admin == 1);
-        return true;
+        return $user->hasRole('polex_admin');
     }
 
     /**
@@ -42,7 +42,7 @@ class CheckIfAdmin
         if ($request->ajax() || $request->wantsJson()) {
             return response(trans('backpack::base.unauthorized'), 401);
         } else {
-            return redirect()->guest(backpack_url('login'));
+            abort(403);
         }
     }
 
