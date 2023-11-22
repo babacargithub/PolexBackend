@@ -2,13 +2,11 @@
 
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\PartiController;
-use App\Models\Company;
 use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
 use App\Models\PartiUser;
 use App\Models\User;
-use App\Policies\RoleNames;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Routing\ResponseFactory;

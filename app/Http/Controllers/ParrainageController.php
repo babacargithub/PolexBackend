@@ -461,7 +461,6 @@ class ParrainageController extends Controller
 
     public function findForAutocomplete($param)
     {
-        if (Parti::partiOfCurrentUser()->created_at->isAfter("2023-06-17")){
             $parti = Parti::partiOfCurrentUser();
             $has_endpoint = $parti->hasEndpoint();
 
@@ -504,7 +503,7 @@ class ParrainageController extends Controller
 
             }
 
-        }
+
 
     }
 
