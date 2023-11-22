@@ -41,9 +41,12 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
     $parti = Parti::partiOfCurrentUser();
     $params = Params::getParams();
 
+    $partis_that_disable_date_expir_repeat = ['BEUGG '];
+
     $parti["has_pro"] = $parti->formule->has_pro_validation;
     $parti["has_correction"] = true;
     $parti["has_autocomplete"] = true;
+    $parti["repeat_date_expir"] = ! in_array($parti->nom, $partis_that_disable_date_expir_repeat);
 
     $parti["discriminantField"] = json_decode($params->discriminant_field);
     $params->discriminant_field = json_decode($params->discriminant_field);
@@ -151,6 +154,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::get("export_criteria",[ParrainageController ::class,"exportCriteria"]);
     Route::get("parrainages/search",[ParrainageController ::class,"searchParrainage"]);
     Route::delete("parrainages/{parrainage_id}/delete",[ParrainageController ::class,"delete"]);
+    Route::get("parrainages/user_report/{user}",[ParrainageController ::class,"userReport"]);
 
     Route::get('parrainages/region/{region}', function ($region){
 

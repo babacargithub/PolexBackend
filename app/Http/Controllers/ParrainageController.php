@@ -90,7 +90,8 @@ class ParrainageController extends Controller
                         }
                         return $item;
 
-                    }, $rapports["users"]);
+                    },
+                        $rapports["users"]);
                     $rapports["today_counts_per_user"] = array_map(function ($item){
                         if ($item["user"] != null) {
                             $user = User::whereId($item["user"])->first();
@@ -111,6 +112,7 @@ class ParrainageController extends Controller
         }else{
             $total_saisi = Parrainage::wherePartiId($parti_id)->count();
             $rapports["total_saisi"] = $total_saisi;
+            $rapports["today_count"] = Parrainage::whereDate("created_at",Carbon::today()->toDateString())->count();
             $rapports["regions"] = Parrainage::select('region as nom', DB::raw('count(*) as nombre'))
                 ->where("parti_id",$parti_id)
                 ->groupBy('region')
@@ -142,7 +144,7 @@ class ParrainageController extends Controller
             "nom"=>"required|min:2|max:20",
             "nin"=>"required|string|min:13|max:14",
             "num_electeur"=>"required|digits:9",
-            "date_expir"=>"required|string",
+            "date_expir"=>"required|date_format:d/m/Y",
             "region"=>"required|string",
             "primo"=>"bool",
             "commune"=>"string"
@@ -459,17 +461,6 @@ class ParrainageController extends Controller
 
     public function findForAutocomplete($param)
     {
-        $electeur = DB::table("electeurs")->select(["prenom","nom","nin","num_electeur","region","commune"])
-            ->where(DB::raw("TRIM(nin)"),$param)
-            ->orWhere(DB::raw("TRIM(num_electeur)"),$param)
-            ->first();
-        if ($electeur == null){
-            return response()->json(['message'=>'not found'],404);
-        }
-        $electeur->date_expir = null;
-//        $electeur->region = ParrainageController::isDiasporaRegion($electeur->region)
-//            ?
-//            "DIASPORA": $electeur->region;
         if (Parti::partiOfCurrentUser()->created_at->isAfter("2023-06-17")){
             $parti = Parti::partiOfCurrentUser();
             $has_endpoint = $parti->hasEndpoint();
@@ -482,22 +473,39 @@ class ParrainageController extends Controller
 
                 } else {
                     if ($response->notFound()){
+                        $electeur = DB::table("electeurs")->select(["prenom","nom","nin","num_electeur","region","commune"])
+                            ->where(DB::raw("TRIM(nin)"),$param)
+                            ->orWhere(DB::raw("TRIM(num_electeur)"),$param)
+                            ->first();
+                        if ($electeur == null){
+                            return response()->json(['message'=>'not found'],404);
+                        }
+                        $electeur->date_expir = null;
+
                         return ["already_exists"=>false, "electeur"=>$electeur];
+
                     }else{
 
-                    return response()->json([],500);
+                        return response()->json([],500);
                     }
                 }
             }else{
+                $electeur = DB::table("electeurs")->select(["prenom","nom","nin","num_electeur","region","commune"])
+                    ->where(DB::raw("TRIM(nin)"),$param)
+                    ->orWhere(DB::raw("TRIM(num_electeur)"),$param)
+                    ->first();
                 $parrainage = Parrainage::where("nin",$param)
                     ->orWhere(DB::raw("TRIM(num_electeur)"),$param)
                     ->first();
+                if ($electeur == null){
+                    return response()->json(['message'=>'not found'],404);
+                }
                 return ["already_exists"=>$parrainage != null, "electeur"=>$electeur];
 
             }
 
         }
-        return $electeur;
+
     }
 
     /**
@@ -667,5 +675,11 @@ class ParrainageController extends Controller
             return response()->json(['message'=>$e->response->body()],500);
         }
 
+    }
+
+    public function userReport(User $user)
+    {
+       $data = [];
+        return $data;
     }
 }
