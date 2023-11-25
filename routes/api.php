@@ -152,6 +152,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::get("export_criteria",[ParrainageController ::class,"exportCriteria"]);
     Route::get("parrainages/search",[ParrainageController ::class,"searchParrainage"]);
     Route::delete("parrainages/{parrainage_id}/delete",[ParrainageController ::class,"delete"]);
+    Route::delete("parrainages/bulk_delete",[ParrainageController ::class,"bulkDelete"]);
     Route::get("parrainages/user_report/{user}",[ParrainageController ::class,"userReport"]);
 
     Route::get('parrainages/region/{region}', function ($region){

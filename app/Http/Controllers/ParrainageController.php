@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreParrainageRequest;
 use App\Http\Requests\UpdateParrainageRequest;
+use App\Models\Archive;
 use App\Models\Electeur;
 use App\Models\Params;
 use App\Models\Parrainage;
@@ -555,6 +556,8 @@ class ParrainageController extends Controller
         }
         $query = null;
         switch($searchCriteria){
+            case "parrainages_single": $query = Parrainage::whereNumElecteur($request->query('param'))->orWhere('nin',$request->query('param'));
+            break;
             case "parrainages_today": $query = Parrainage::whereDate("created_at",Carbon::today()->toDateString());
             break;
             case "parrainages_date_interval":
@@ -670,6 +673,60 @@ class ParrainageController extends Controller
             if ($response->successful()){
                 return \response()->json(['message'=>'deleted'],204);
             }
+        } catch (RequestException $e) {
+            return response()->json(['message'=>$e->response->body()],500);
+        }
+
+    }
+    /**
+     * @throws RequestException
+     */
+    public function bulkDelete(Request $request)
+    {
+        try {
+            if ( ! \request()->user()->hasRole('owner')){
+                abort(403,"Vous n'etes pas autorisé à supprimer des parrainages !");
+            }
+            $parti = Parti::partiOfCurrentUser();
+            $data = $request->getContent();
+            $archive = new Archive();
+            $archive->data = $data;
+            $archive->parti()->associate($parti);
+            $archive->save();
+            $idsOfItemsToDelete = array_map(function ($item){
+                return $item['id'];
+
+            },$request->toArray());
+
+
+            $query = Parrainage::whereIn('id',$idsOfItemsToDelete);
+            $sql = str_replace('select * ','delete ',$query->toSql());
+            $bindings = $query->getBindings();
+
+// Replace placeholders with actual values
+            foreach ($bindings as $binding) {
+                $sql = preg_replace('/\?/', "'$binding'", $sql, 1);
+            }
+            try {
+
+                $url = Parti::partiOfCurrentUser()->end_point . "parrainages/search";
+                $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => "2022", "query" => $sql]);
+                $response->throw();
+                $results = $response->object();
+
+
+                return $results;
+            } catch (RequestException $e) {
+                return json_decode($e->response->body());
+
+            }
+            return  new JsonResponse([$idsOfItemsToDelete],204);
+           /* $response = Http::withHeaders(self::jsonHeaders)
+                ->delete($parti->end_point .'parrainages/delete/bulk',["secret" => "2022"]);
+            $response->throw();
+            if ($response->successful()){
+                return \response()->json(['message'=>'deleted'],204);
+            }*/
         } catch (RequestException $e) {
             return response()->json(['message'=>$e->response->body()],500);
         }
