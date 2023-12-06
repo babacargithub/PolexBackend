@@ -44,7 +44,7 @@ class Parti extends Model
 {
     use CrudTrait;
 
-    protected $fillable = ["nom","code","formule_id","end_point"];
+    protected $fillable = ["nom","code","formule_id","end_point","has_debt"];
 
     public static function partiOfCurrentUser() : Parti
     {
@@ -82,7 +82,7 @@ class Parti extends Model
 
         return isset($this->attributes["end_point"]) && $this->attributes["end_point"] != null;
     }
-    protected $casts = ["created_at"=>"datetime"];
+    protected $casts = ["created_at"=>"datetime",'has_debt'=>'bool'];
 
     use HasFactory;
 }

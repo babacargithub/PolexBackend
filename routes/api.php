@@ -39,7 +39,7 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
     $parti = Parti::partiOfCurrentUser();
     $params = Params::getParams();
 
-    $partis_that_disable_date_expir_repeat = ['BEUGG '];
+    $partis_that_disable_date_expir_repeat = ['Pape '];
 
     $parti["has_pro"] = $parti->formule->has_pro_validation;
     $parti["has_correction"] = true;
@@ -153,12 +153,17 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::get("parrainages/search",[ParrainageController ::class,"searchParrainage"]);
     Route::delete("parrainages/{parrainage_id}/delete",[ParrainageController ::class,"delete"]);
     Route::delete("parrainages/bulk_delete",[ParrainageController ::class,"bulkDelete"]);
+    Route::post("parrainages/identify",[ParrainageController ::class,"bulkIdentify"]);
     Route::get("parrainages/user_report/{user}",[ParrainageController ::class,"userReport"]);
 
     Route::get('parrainages/region/{region}', function ($region){
 
-        $parti_id = Parti::partiOfCurrentUser()->id;
+        $parti = Parti::partiOfCurrentUser();
+        $parti_id = $parti->id;
+        if ($parti->has_debt ){
+          abort(403,"L'état de votre compte ne permet pas de faire cette opération. Contactez l'équipe de Polex");
 
+        }
         if (Parti::partiOfCurrentUser()->hasEndpoint()) {
             $url = Parti::partiOfCurrentUser()->end_point."parrainages/region/" . $region . "?page=" . request()->query('page');
             $response = Http::withHeaders(ParrainageController::jsonHeaders)

@@ -6,9 +6,15 @@ use App\Http\Requests\PartiRequest;
 use App\Models\Parti;
 use App\Models\User;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
+use Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
+use Backpack\CRUD\app\Http\Controllers\Operations\DeleteOperation;
+use Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
+use Backpack\CRUD\app\Http\Controllers\Operations\ShowOperation;
+use Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use phpDocumentor\Reflection\Types\This;
 use Prologue\Alerts\Facades\Alert;
 
 /**
@@ -18,11 +24,11 @@ use Prologue\Alerts\Facades\Alert;
  */
 class PartiCrudController extends CrudController
 {
-    use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
-    use \Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
-    use \Backpack\CRUD\app\Http\Controllers\Operations\UpdateOperation;
-    use \Backpack\CRUD\app\Http\Controllers\Operations\DeleteOperation;
-    use \Backpack\CRUD\app\Http\Controllers\Operations\ShowOperation;
+    use ListOperation;
+    use CreateOperation;
+    use UpdateOperation;
+    use DeleteOperation;
+    use ShowOperation;
 
     /**
      * Configure the CrudPanel object. Apply settings to all operations.
@@ -46,9 +52,9 @@ class PartiCrudController extends CrudController
     {
         CRUD::column('nom');
         CRUD::column('code');
+        CRUD::column('has_debt');
         CRUD::column('formule_id');
         CRUD::column('created_at');
-        CRUD::column('updated_at');
 
         /**
          * Columns can be defined using the fluent syntax or array syntax:
@@ -92,6 +98,8 @@ class PartiCrudController extends CrudController
             'name'=>"end_point",
             'label'     => "Url du serveur",
             'text'      => 'select',]);
+        CRUD::field('has_debt');
+
 
 
         /**
