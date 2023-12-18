@@ -8,6 +8,7 @@ use App\Models\Archive;
 use App\Models\Electeur;
 use App\Models\Params;
 use App\Models\Parrainage;
+use App\Models\ParrainageFinal;
 use App\Models\Parti;
 use App\Models\User;
 use Carbon\Carbon;
@@ -4330,13 +4331,11 @@ class ParrainageController extends Controller
             "region" => "TUNISIE"
         ]
     ];
-     const REGIONS = ["DAKAR","THIES","LOUGA","SAINT LOUIS","MATAM","TAMBACOUNDA","KEDOUGOU", "KOLDA","SEDHIOU","ZIGUINCHOR","KAOLACK","DIOURBEL","KAFFRINE","FATICK","DIASPORA"];
+    const REGIONS = ["DAKAR","THIES","LOUGA","SAINT LOUIS","MATAM","TAMBACOUNDA","KEDOUGOU", "KOLDA","SEDHIOU","ZIGUINCHOR","KAOLACK","DIOURBEL","KAFFRINE","FATICK","DIASPORA"];
 
 
     public function index(): JsonResponse|array
     {
-
-
 
 
         if (!request()->user()->hasRole("owner")) {
@@ -4348,85 +4347,85 @@ class ParrainageController extends Controller
 
         $parti = Parti::partiOfCurrentUser();
 
-            try {
-                $url = $parti->end_point . "parrainages";
-                $response = Http::get($url);
-                $response->throw();
-                if ($response->successful()) {
-                    $dataFromApi = json_decode($response->body(), true);
-                    $rapports = array_merge($rapports, $dataFromApi);
+        try {
+            $url = $parti->end_point . "parrainages";
+            $response = Http::get($url);
+            $response->throw();
+            if ($response->successful()) {
+                $dataFromApi = json_decode($response->body(), true);
+                $rapports = array_merge($rapports, $dataFromApi);
 
-                    $rapports["users"] = array_map(function ($item) {
-                        if ($item["user"] != null) {
-                            $user = User::whereId($item["user"])->first();
-                            $item["user"] = $user != null ? $user->name : "Inconnu";
-                            return $item;
-                        }
+                $rapports["users"] = array_map(function ($item) {
+                    if ($item["user"] != null) {
+                        $user = User::whereId($item["user"])->first();
+                        $item["user"] = $user != null ? $user->name : "Inconnu";
                         return $item;
+                    }
+                    return $item;
 
-                    },
-                        $rapports["users"]);
-                   /* $totalDiaspora = 0;
-                    $rapports["regions"] = array_map(function ($item) use
-                     (&$totalDiaspora) {
-                        if ($item["nom"] != null) {
-                            if (self::isDiasporaRegion($item["nom"])) {
-                                $totalDiaspora += $item["nombre"];
-                                $item['nom'] = "DIASPORA";
-                            }
-                            return $item;
-                        }
-                        return $item;
+                },
+                    $rapports["users"]);
+                /* $totalDiaspora = 0;
+                 $rapports["regions"] = array_map(function ($item) use
+                  (&$totalDiaspora) {
+                     if ($item["nom"] != null) {
+                         if (self::isDiasporaRegion($item["nom"])) {
+                             $totalDiaspora += $item["nombre"];
+                             $item['nom'] = "DIASPORA";
+                         }
+                         return $item;
+                     }
+                     return $item;
 
-                    },
-                        $rapports["regions"]);
-                    $diasporaRegions = array_filter($rapports["regions"], function ($item) {
-                        return $item["nom"] === "DIASPORA";
-                    });
+                 },
+                     $rapports["regions"]);
+                 $diasporaRegions = array_filter($rapports["regions"], function ($item) {
+                     return $item["nom"] === "DIASPORA";
+                 });
 
 // Optionally, remove diaspora regions from the original array
-                    $rapports["regions"] = array_filter($rapports["regions"], function ($item) {
-                        return $item["nom"] !== "DIASPORA";
-                    });*/
-                    $totalDiaspora = 0;
-                    $rapports["regions"] = array_reduce($rapports["regions"], function ($carry, $item) use (&$totalDiaspora) {
-                        if ($item["nom"] != null) {
-                            if (self::isDiasporaRegion($item["nom"])) {
-                                $totalDiaspora += $item["nombre"];
-                            } else {
-                                // Add non-diaspora regions directly to the result
-                                $carry[] = $item;
-                            }
+                 $rapports["regions"] = array_filter($rapports["regions"], function ($item) {
+                     return $item["nom"] !== "DIASPORA";
+                 });*/
+                $totalDiaspora = 0;
+                $rapports["regions"] = array_reduce($rapports["regions"], function ($carry, $item) use (&$totalDiaspora) {
+                    if ($item["nom"] != null) {
+                        if (self::isDiasporaRegion($item["nom"])) {
+                            $totalDiaspora += $item["nombre"];
+                        } else {
+                            // Add non-diaspora regions directly to the result
+                            $carry[] = $item;
                         }
+                    }
 
-                        return $carry;
-                    }, []);
+                    return $carry;
+                }, []);
 
 // Add a single item representing diaspora regions to the result
-                    if ($totalDiaspora > 0) {
-                        $rapports["regions"][] = [
-                            "nom" => "DIASPORA",
-                            "nombre" => $totalDiaspora,
-                            // Add other properties as needed
-                        ];
-                    }
-                    $rapports["today_counts_per_user"] = array_map(function ($item) {
-                        if ($item["user"] != null) {
-                            $user = User::whereId($item["user"])->first();
-                            $item["user"] = $user != null ? $user->name : "Inconnu";
-                            return $item;
-                        }
-                        return $item;
-
-                    }, $rapports["today_counts_per_user"]);
-
-
+                if ($totalDiaspora > 0) {
+                    $rapports["regions"][] = [
+                        "nom" => "DIASPORA",
+                        "nombre" => $totalDiaspora,
+                        // Add other properties as needed
+                    ];
                 }
-            } catch (RequestException $e) {
-                Log::error($e->getMessage());
-                return response()->json(["une erreur s'est produite " . $e->response->body()], 500);
+                $rapports["today_counts_per_user"] = array_map(function ($item) {
+                    if ($item["user"] != null) {
+                        $user = User::whereId($item["user"])->first();
+                        $item["user"] = $user != null ? $user->name : "Inconnu";
+                        return $item;
+                    }
+                    return $item;
+
+                }, $rapports["today_counts_per_user"]);
+
 
             }
+        } catch (RequestException $e) {
+            Log::error($e->getMessage());
+            return response()->json(["une erreur s'est produite " . $e->response->body()], 500);
+
+        }
 
         $total_saisi = $rapports["total_saisi"];
         $rapports["manquant"] = $params->min_count - $total_saisi;
@@ -4753,6 +4752,7 @@ class ParrainageController extends Controller
                 $corrected = [];
                 $corrected["prenom"] = $electeur->prenom;
                 $corrected["nom"] = $electeur->nom;
+//                $corrected["nin"] = $electeur->nin ?? $parrainage["nin"];
                 $corrected["nin"] = $electeur->nin;
                 $corrected["num_electeur"] = $electeur->num_electeur;
                 $corrected["date_expir"] = $parrainage["date_expir"];
@@ -4775,8 +4775,8 @@ class ParrainageController extends Controller
     {
 
         $parti = Parti::partiOfCurrentUser();
-        if ($parti->nom =='ABS 2024' ){
-            abort(403, "Accès refusé !");
+        if ($parti->has_debt ){
+            abort(403, "Souscription POLEX expirée ! Contactez le support");
         }
         $has_endpoint = $parti->hasEndpoint();
 
@@ -4860,7 +4860,8 @@ class ParrainageController extends Controller
     {
         $parti = Parti::partiOfCurrentUser();
         if ($parti->has_debt ){
-            return \response()->json(["message" => "L'état de votre compte ne permet pas de faire cette opération. Contactez l'équipe de Polex"], 422);
+            return \response()->json(["message" => "Souscription POLEX expirée ! Contactez le support"], 422);
+
         }
         function rejectResponseForMissingQuery($message): JsonResponse
         {
@@ -4900,7 +4901,9 @@ class ParrainageController extends Controller
                     return rejectResponseForMissingQuery('Vous avez choisi le critère "Recherche par région" sans préciser la région ! ');
 
                 }
-                $query = Parrainage::whereRegion($region);
+                $query = ! self::isDiasporaRegion($region) ? Parrainage::whereRegion($region)
+                : Parrainage::whereIn("region", self::REGIONS_DIASPORA)
+                ;
                 break;
             case "parrainages_departement":
                 $departement = $request->query("departement");
@@ -4951,6 +4954,16 @@ class ParrainageController extends Controller
                     ->whereDate("created_at", '<=', $dateEnd);
             }
             $query->orderBy('created_at');
+            if ($request->query("limit") != null && $request->query("limit") != "null" && $request->query("limit") >0){
+
+                $query->limit($request->query("limit"));
+            }
+            if ($request->query("exclureDoublons") == "true"){
+                $query->where(function ($subQuery){
+                $subQuery->where('doublon', '!=',1)->orWhere('doublon', null);
+                });
+
+            }
             $sql = $query->toSql();
 
 // Get the bindings
@@ -4958,14 +4971,16 @@ class ParrainageController extends Controller
 
 // Replace placeholders with actual values
             foreach ($bindings as $binding) {
-                $sql = preg_replace('/\?/', "'$binding'", $sql, 1);
+                $sql = preg_replace('/\?/', '"'.$binding.'"', $sql, 1);
             }
             try {
+//                dd($sql);
 
                 $url = Parti::partiOfCurrentUser()->end_point . "parrainages/search";
-                $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => "2022", "query" => $sql]);
+                $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $sql]);
                 $response->throw();
                 $results = $response->object();
+
 
                 if (count($results) == 0) {
                     return \response()->json(["message" => "Aucun résultat trouvé !"], 404);
@@ -4997,7 +5012,7 @@ class ParrainageController extends Controller
             }
             $parti = Parti::partiOfCurrentUser();
             $response = Http::withHeaders(self::jsonHeaders)
-                ->delete($parti->end_point . 'parrainages/delete/' . $parrainage_id, ["secret" => "2022"]);
+                ->delete($parti->end_point . 'parrainages/delete/' . $parrainage_id, ["secret" => $parti->code]);
             $response->throw();
             if ($response->successful()) {
                 return \response()->json(['message' => 'deleted'], 204);
@@ -5040,7 +5055,7 @@ class ParrainageController extends Controller
             try {
 
                 $url = Parti::partiOfCurrentUser()->end_point . "parrainages/search";
-                $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => "2022", "query" => $sql]);
+                $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $sql]);
                 $response->throw();
                 $results = $response->object();
 
@@ -5086,7 +5101,7 @@ class ParrainageController extends Controller
             foreach ($bindings as $binding) {
                 $sql = preg_replace('/\?/', "'$binding'", $sql, 1);
             }
-            $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => "2022", "query" => $sql]);
+            $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $sql]);
             $response->throw();
             $results = $response->object();
             $results = array_map(function ($item) {
@@ -5102,5 +5117,239 @@ class ParrainageController extends Controller
 
         return $results;
     }
+
+    // ============================== SECTION OF FINAL METHODS ====================
+    public function parrainagesFinalIndex()
+    {
+        $rapports = [];
+        if (!request()->user()->hasRole("owner")) {
+            abort(403, "Accès aux rapports refusé !");
+        }
+
+        $parti = Parti::partiOfCurrentUser();
+
+        try {
+            $url = $parti->end_point . "parrainages/final/index";
+            $response = Http::get($url);
+            $response->throw();
+            if ($response->successful()) {
+                $rapports = json_decode($response->body(), true);
+
+                $rapports["users"] = array_map(function ($item) {
+                    if ($item["user"] != null) {
+                        $user = User::whereId($item["user"])->first();
+                        $item["user"] = $user != null ? $user->name : "Inconnu";
+                        return $item;
+                    }
+                    return $item;
+
+                },
+                    $rapports["users"]);
+                $totalDiaspora = 0;
+                $rapports["regions"] = array_reduce($rapports["regions"], function ($carry, $item) use (&$totalDiaspora) {
+                    if ($item["nom"] != null) {
+                        if (self::isDiasporaRegion($item["nom"])) {
+                            $totalDiaspora += $item["nombre"];
+                        } else {
+                            // Add non-diaspora regions directly to the result
+                            $carry[] = $item;
+                        }
+                    }
+
+                    return $carry;
+                }, []);
+
+// Add a single item representing diaspora regions to the result
+                if ($totalDiaspora > 0) {
+                    $rapports["regions"][] = [
+                        "nom" => "DIASPORA",
+                        "nombre" => $totalDiaspora,
+                        // Add other properties as needed
+                    ];
+                }
+
+
+
+            }
+        } catch (RequestException $e) {
+            Log::error($e->getMessage());
+            return response()->json(["une erreur s'est produite " . $e->response->body()], 500);
+
+        }
+
+
+
+        return $rapports;
+
+    }
+    public function bulkAddParrainagesToFinal()
+    {
+
+
+//        $data = json_decode(request()->getContent(), true);
+        $data = \request()->json('data');
+        $query = "INSERT IGNORE INTO parrainages_final ("; // start query
+        $query .= implode(",",array_keys($data[0]));
+        $query .= ") VALUES ";
+        $parti = Parti::partiOfCurrentUser();
+
+        $url = $parti->end_point . 'parrainages/search';
+
+        try {
+
+            $data = array_map(function ($item) {
+
+
+// Extract values and escape special characters
+                $escapedValues = array_map('addslashes', array_values($item));
+
+// Implode into a string with each value quoted
+                $implodedString = '"' . implode('", "', $escapedValues) . '"';
+
+// Wrap with parentheses
+                return "($implodedString)";
+            }, $data);
+
+            $query.=implode(",",$data);
+
+            $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => 'Select COUNT(*)  as total from parrainages_final']);
+            $response->throw();
+            $results = $response->object();
+            $total = $results[0]->total;
+            if ($total >= 58975){
+                return response()->json(["message"=>"Vous avez atteint le nombre maximal de 58 975  parrainages autorisés  dans le fichier finale !"], 422);
+            }
+            $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $query]);
+            $response->throw();
+            $results = $response->object();
+
+
+        } catch (RequestException $e) {
+            Log::error($e->getMessage());
+            return response($e->response, 500);
+        }
+
+
+        return $results;
+    }
+ public function saveDuplicates()
+    {
+
+
+//        $data = json_decode(request()->getContent(), true);
+        $data = \request()->json('data');
+        $query = "UPDATE parrainages SET doublon = 1 WHERE num_electeur IN ("; // start query
+        $parti = Parti::partiOfCurrentUser();
+
+        $url = $parti->end_point . 'parrainages/search';
+
+        try {
+
+            $data = array_map(function ($item) {
+                return "'$item'";
+            }, $data);
+
+            $query.=implode(",",$data);
+
+            $query.=")";
+
+
+            $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $query]);
+            $response->throw();
+            $results = $response->object();
+
+
+        } catch (RequestException $e) {
+            Log::error($e->getMessage());
+            return response($e->response, 500);
+        }
+
+
+        return $results;
+    }
+    public function deleteFinalBulk2()
+    {
+
+
+//        $data = json_decode(request()->getContent(), true);
+        $data = \request()->json('data');
+        $query = "DELETE FROM parrainages_final WHERE num_electeur IN ("; // start query
+        $parti = Parti::partiOfCurrentUser();
+
+        $url = $parti->end_point . 'parrainages/search';
+
+        try {
+
+            $data = array_map(function ($item) {
+                return "'$item'";
+            }, $data);
+
+            $query.=implode(",",$data);
+
+            $query.=")";
+
+
+            $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $query]);
+            $response->throw();
+            $results = $response->object();
+
+
+        } catch (RequestException $e) {
+            Log::error($e->getMessage());
+            return response($e->response, 500);
+        }
+
+
+        return $results;
+    }
+    public function deleteFinalBulk(Request $request)
+    {
+        try {
+            if (!\request()->user()->hasRole('owner')) {
+                abort(403, "Vous n'etes pas autorisé à supprimer des parrainages !");
+            }
+            $parti = Parti::partiOfCurrentUser();
+            $data = $request->getContent();
+            $archive = new Archive();
+            $archive->data = $data;
+            $archive->parti()->associate($parti);
+            $archive->save();
+            $idsOfItemsToDelete = $request->toArray();
+
+
+            $query = ParrainageFinal::whereIn('num_electeur', $idsOfItemsToDelete);
+            $sql = str_replace('select * ', 'delete ', $query->toSql());
+            $bindings = $query->getBindings();
+
+// Replace placeholders with actual values
+            foreach ($bindings as $binding) {
+                $sql = preg_replace('/\?/', "'$binding'", $sql, 1);
+            }
+            try {
+
+                $url = Parti::partiOfCurrentUser()->end_point . "parrainages/search";
+                $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $sql]);
+                $response->throw();
+                $results = $response->object();
+
+
+                return $results;
+            } catch (RequestException $e) {
+                return json_decode($e->response->body());
+
+            }
+            return new JsonResponse([$idsOfItemsToDelete], 204);
+            /* $response = Http::withHeaders(self::jsonHeaders)
+                 ->delete($parti->end_point .'parrainages/delete/bulk',["secret" => "2022"]);
+             $response->throw();
+             if ($response->successful()){
+                 return \response()->json(['message'=>'deleted'],204);
+             }*/
+        } catch (RequestException $e) {
+            return response()->json(['message' => $e->response->body()], 500);
+        }
+
+    }
+
 
 }
