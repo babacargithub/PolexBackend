@@ -162,22 +162,27 @@ Route::middleware(["auth:sanctum"])->group(function() {
 
     Route::get('parrainages/final/all', function (){
 
-        $parti = Parti::partiOfCurrentUser();
-        $parti_id = $parti->id;
-        if ($parti->has_debt ){
-            abort(403, "Souscription POLEX expirée ! Contactez le support");
+        try {
+            $parti = Parti::partiOfCurrentUser();
+            $parti_id = $parti->id;
+            if ($parti->has_debt) {
+                abort(403, "Souscription POLEX expirée ! Contactez le support");
 
-        }
-            $url = Parti::partiOfCurrentUser()->end_point."parrainages/final/all?page=" . request()->query('page');
+            }
+            $url = Parti::partiOfCurrentUser()->end_point . "parrainages/final/all?page=" . request()->query('page');
             $response = Http::withHeaders(ParrainageController::jsonHeaders)
                 ->get($url);
+            $response->throw();
             if ($response->successful()) {
                 return json_decode($response->body());
             } else {
                 return response()->json(["une erreur s'est produite !"], 500);
             }
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            abort($e->getCode(), $e->getMessage());
+        }
 
-    });
+    })->withoutMiddleware("throttle:api");;
 
     Route::get('parrainages/region/{region}', function ($region){
 
@@ -208,7 +213,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
         ->withoutMiddleware("throttle:api");
     Route::put('parrainages/update/{num_electeur}',[ParrainageController::class,'update']);
 
-    Route::apiResource("parrainages", ParrainageController::class,["except"=>["update","store"]]);
+    Route::apiResource("parrainages", ParrainageController::class);
 
 });
 

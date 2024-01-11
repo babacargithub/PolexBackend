@@ -4964,6 +4964,12 @@ class ParrainageController extends Controller
                 });
 
             }
+            if ($request->query("exclureFinal") == "true"){
+                $query->whereNotIn('num_electeur',function (Builder $subQuery){
+                $subQuery->select('num_electeur')->from('parrainages_final');
+                });
+
+            }
             $sql = $query->toSql();
 
 // Get the bindings
@@ -5111,6 +5117,8 @@ class ParrainageController extends Controller
             }, $results);
 
         } catch (RequestException $e) {
+            Log::error($e->response->body());
+            return response()->json(["une erreur s'est produite kk " . $e->response->body()], 500);
 
         }
 
@@ -5216,8 +5224,8 @@ class ParrainageController extends Controller
             $response->throw();
             $results = $response->object();
             $total = $results[0]->total;
-            if ($total >= 58975){
-                return response()->json(["message"=>"Vous avez atteint le nombre maximal de 58 975  parrainages autorisés  dans le fichier finale !"], 422);
+            if ($total >= 58975 || $total + count($data) > 58975){
+                return response()->json(["message"=>"Le nombre que vous voulez ajouter sera supérieur au  nombre maximal de 58 975  parrainages autorisés  dans le fichier finale !"], 403);
             }
             $response = Http::withHeaders(ParrainageController::jsonHeaders)->post($url, ["secret" => $parti->code, "query" => $query]);
             $response->throw();
