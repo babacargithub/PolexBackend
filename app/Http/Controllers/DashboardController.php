@@ -59,10 +59,6 @@ class DashboardController extends Controller
     }
     public function regions(){
         $communes = \DB::select( 'SELECT commune, COUNT(*) AS nombre FROM membres GROUP BY commune');
-        $departements = \DB::select( 'SELECT departement, COUNT(*) AS nombre FROM membres GROUP BY departement');
 
-        foreach ($communes as $commune) {
-            $commune->region = $this->getRegion($commune->commune);
-        }
     }
 }
