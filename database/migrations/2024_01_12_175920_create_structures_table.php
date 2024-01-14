@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Membre;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,13 +14,11 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('formules', function (Blueprint $table) {
+        Schema::create('structures', function (Blueprint $table) {
             $table->id();
             $table->string("nom")->nullable(false);
-            $table->string("constant_name")->unique();
-            $table->integer("prix")->nullable(false);
-            $table->integer("has_pro_validation")->nullable(false)->default(false);
-
+            $table->string("commune")->nullable(false);
+            $table->string("type")->nullable(false);
             $table->timestamps();
         });
     }
@@ -31,6 +30,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('formules');
+        Schema::dropIfExists('structures');
     }
 };

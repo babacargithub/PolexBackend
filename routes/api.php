@@ -1,7 +1,12 @@
 <?php
 
+use App\Http\Controllers\CarteMembreController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MembreController;
 use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\PartiController;
+use App\Http\Controllers\StructureController;
+use App\Http\Controllers\TypeMembreController;
 use App\Models\Params;
 use App\Models\Parrainage;
 use App\Models\Parti;
@@ -37,27 +42,25 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
     $token = request()->user()->createToken("name", [], Carbon::now()->addDay());
 //        $parti  = Parti::where('user_id', request()->user()->id)->first();
     $parti = Parti::partiOfCurrentUser();
-    $params = Params::getParams();
+    $params = [];
 
     $partis_that_disable_date_expir_repeat = ['Pape '];
 
-    $parti["has_pro"] = $parti->formule->has_pro_validation;
+    $parti["has_pro"] = true;
     $parti["has_correction"] = true;
     $parti["has_autocomplete"] = true;
     $parti["repeat_date_expir"] = ! in_array($parti->nom, $partis_that_disable_date_expir_repeat);
 
-    $parti["discriminantField"] = json_decode($params->discriminant_field);
-    $params->discriminant_field = json_decode($params->discriminant_field);
     $roles = [];
     foreach (request()->user()->roles as $role) {
         $roles[] = $role->name;
 
     }
     $permissions = [];
-    foreach (request()->user()->permissions as $permission) {
+    /*foreach (request()->user()->permissions as $permission) {
         $roles[] = $permission->name;
 
-    }
+    }*/
     $user = request()->user();
     return response(["token" => $token, "parti" => $parti, "params" => $params,
         "user" => [
@@ -149,71 +152,17 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::put("users/{user}/reset_password",[PartiController::class,"resetUserPassword"]);
     Route::put("users/{user}/add_role/{role}",[PartiController::class,"userAddRole"]);
     Route::put("users/{user}/remove_role/{role}",[PartiController::class,"removeUserRole"]);
-    Route::get("export_criteria",[ParrainageController ::class,"exportCriteria"]);
-    Route::get("parrainages/search",[ParrainageController ::class,"searchParrainage"]);
-    Route::delete("parrainages/{parrainage_id}/delete",[ParrainageController ::class,"delete"]);
-    Route::delete("parrainages/bulk_delete",[ParrainageController ::class,"bulkDelete"]);
-    Route::post("parrainages/duplicates/save",[ParrainageController ::class,"saveDuplicates"]);
-    Route::post("parrainages/identify",[ParrainageController ::class,"bulkIdentify"]);
-    Route::post("parrainages/final/save",[ParrainageController ::class,"bulkAddParrainagesToFinal"]);
-    Route::delete("parrainages_final//delete",[ParrainageController ::class,"deleteFinalBulk"]);
-    Route::get("parrainages/final/index",[ParrainageController ::class,"parrainagesFinalIndex"]);
-    Route::get("parrainages/user_report/{user}",[ParrainageController ::class,"userReport"]);
+    Route::group(["prefix" => "dashboard/"],function (){
+        Route::get("",[DashboardController::class,"index"]);
+        Route::get("structures",[DashboardController::class,"structures"]);
 
-    Route::get('parrainages/final/all', function (){
-
-        try {
-            $parti = Parti::partiOfCurrentUser();
-            $parti_id = $parti->id;
-            if ($parti->has_debt) {
-                abort(403, "Souscription POLEX expirée ! Contactez le support");
-
-            }
-            $url = Parti::partiOfCurrentUser()->end_point . "parrainages/final/all?page=" . request()->query('page');
-            $response = Http::withHeaders(ParrainageController::jsonHeaders)
-                ->get($url);
-            $response->throw();
-            if ($response->successful()) {
-                return json_decode($response->body());
-            } else {
-                return response()->json(["une erreur s'est produite !"], 500);
-            }
-        } catch (\Illuminate\Http\Client\RequestException $e) {
-            abort($e->getCode(), $e->getMessage());
-        }
-
-    })->withoutMiddleware("throttle:api");;
-
-    Route::get('parrainages/region/{region}', function ($region){
-
-        $parti = Parti::partiOfCurrentUser();
-        $parti_id = $parti->id;
-        if ($parti->has_debt ){
-            abort(403, "Souscription POLEX expirée ! Contactez le support");
-
-        }
-        if (Parti::partiOfCurrentUser()->hasEndpoint()) {
-            $url = Parti::partiOfCurrentUser()->end_point."parrainages/region/" . $region . "?page=" . request()->query('page');
-            $response = Http::withHeaders(ParrainageController::jsonHeaders)
-                ->get($url);
-            if ($response->successful()) {
-                return json_decode($response->body());
-            } else {
-                return response()->json(["une erreur s'est produite !"], 500);
-            }
-        }
-        return Parrainage::wherePartiId($parti_id)->whereRegion($region)->orderBy("created_at")->paginate(1000);
     });
-    Route::get('parrainages/autocomplete/{param}',[ParrainageController::class,'findForAutocomplete']);
-    Route::post('parrainages/excel', [ParrainageController::class,"bulkInsertFromExcel"])
-        ->withoutMiddleware("throttle:api");
-    Route::post('parrainages/bulk_pro_validation',[ParrainageController::class,'bulkProValidation'])
-        ->withoutMiddleware("throttle:api");
-    Route::post('parrainages/bulk_correction',[ParrainageController::class,'bulkCorrection'])
-        ->withoutMiddleware("throttle:api");
-    Route::put('parrainages/update/{num_electeur}',[ParrainageController::class,'update']);
+    Route::get("membres_commune/{commune}", [MembreController::class,'membresCommune']);
+    Route::resource("membres", MembreController::class);
+    Route::resource("structures", StructureController::class);
+    Route::resource("cartes", CarteMembreController::class);
+    Route::resource("types_membre", TypeMembreController::class);
 
-    Route::apiResource("parrainages", ParrainageController::class);
 
 });
 

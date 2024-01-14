@@ -27,7 +27,7 @@ return new class extends  Migration
     public function down(): void
     {
         Schema::table('partis',function (Blueprint $table){
-            $table->dropColumn("has_dept");
+            $table->dropColumn("has_debt");
         });
     }
 };

@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Requests\ParrainageRequest;
+use App\Http\Requests\StructureRequest;
 use Backpack\CRUD\app\Http\Controllers\CrudController;
 use Backpack\CRUD\app\Library\CrudPanel\CrudPanelFacade as CRUD;
 
 /**
- * Class ParrainageCrudController
+ * Class StructureCrudController
  * @package App\Http\Controllers\Admin
  * @property-read \Backpack\CRUD\app\Library\CrudPanel\CrudPanel $crud
  */
-class ParrainageCrudController extends CrudController
+class StructureCrudController extends CrudController
 {
     use \Backpack\CRUD\app\Http\Controllers\Operations\ListOperation;
     use \Backpack\CRUD\app\Http\Controllers\Operations\CreateOperation;
@@ -26,9 +26,9 @@ class ParrainageCrudController extends CrudController
      */
     public function setup()
     {
-        CRUD::setModel(\App\Models\Parrainage::class);
-        CRUD::setRoute(config('backpack.base.route_prefix') . '/parrainage');
-        CRUD::setEntityNameStrings('parrainage', 'parrainages');
+        CRUD::setModel(\App\Models\Structure::class);
+        CRUD::setRoute(config('backpack.base.route_prefix') . '/structure');
+        CRUD::setEntityNameStrings('structure', 'structures');
     }
 
     /**
@@ -39,12 +39,10 @@ class ParrainageCrudController extends CrudController
      */
     protected function setupListOperation()
     {
-        CRUD::column('num_electeur');
-        CRUD::column('prenom');
         CRUD::column('nom');
-        CRUD::column('nin');
-        CRUD::column('taille');
-        CRUD::column('bureau_vote');
+        CRUD::column('commune');
+        CRUD::column('membre_id');
+        CRUD::column('type');
 
         /**
          * Columns can be defined using the fluent syntax or array syntax:
@@ -61,14 +59,14 @@ class ParrainageCrudController extends CrudController
      */
     protected function setupCreateOperation()
     {
-        CRUD::setValidation(ParrainageRequest::class);
+        CRUD::setValidation([
+            // 'name' => 'required|min:2',
+        ]);
 
-        CRUD::field('num_electeur');
-        CRUD::field('prenom');
         CRUD::field('nom');
-        CRUD::field('nin');
-        CRUD::field('taille');
-        CRUD::field('bureau_vote');
+        CRUD::field('commune');
+        CRUD::field('membre_id');
+        CRUD::field('type');
 
         /**
          * Fields can be defined using the fluent syntax or array syntax:

@@ -13,13 +13,11 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('formules', function (Blueprint $table) {
+        Schema::create('type_carte_membres', function (Blueprint $table) {
             $table->id();
-            $table->string("nom")->nullable(false);
-            $table->string("constant_name")->unique();
+            $table->string("nom")->nullable(false)->unique();
+            $table->string("description")->nullable();
             $table->integer("prix")->nullable(false);
-            $table->integer("has_pro_validation")->nullable(false)->default(false);
-
             $table->timestamps();
         });
     }
@@ -31,6 +29,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('formules');
+        Schema::dropIfExists('type_carte_membres');
     }
 };
