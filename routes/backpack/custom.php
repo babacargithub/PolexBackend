@@ -24,4 +24,8 @@ Route::group([
     Route::crud('type-membre', 'TypeMembreCrudController');
     Route::crud('structure', 'StructureCrudController');
     Route::crud('type-carte-membre', 'TypeCarteMembreCrudController');
+    Route::crud('candidat', 'CandidatCrudController');
+    Route::crud('commune', 'CommuneCrudController');
+    Route::crud('centre', 'CentreCrudController');
+    Route::crud('bureau', 'BureauCrudController');
 }); // this should be the absolute last line of this file

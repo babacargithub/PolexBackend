@@ -6,24 +6,24 @@ use Backpack\CRUD\app\Models\Traits\CrudTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Structure extends Model
+class Bureau extends Model
 {
     use HasFactory;
     use CrudTrait;
+    protected $table = 'bureaux';
     protected $fillable = [
         "nom",
-        "commune",
-        "membre_id",
-        "type"
+        "centre_id",
     ];
-    public function responsable(): BelongsTo
+    public function centre(): BelongsTo
     {
-        return $this->belongsTo(Membre::class);
+        return $this->belongsTo(Centre::class);
     }
-    public function membres(): HasMany
+    public function getNomAttribute(): string
     {
-        return $this->hasMany(Membre::class);
+        return 'Bureau Nº '. abs($this->attributes['nom']);
+
     }
+
 }

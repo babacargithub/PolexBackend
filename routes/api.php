@@ -3,12 +3,10 @@
 use App\Http\Controllers\CarteMembreController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MembreController;
-use App\Http\Controllers\ParrainageController;
 use App\Http\Controllers\PartiController;
+use App\Http\Controllers\PvBureauController;
 use App\Http\Controllers\StructureController;
 use App\Http\Controllers\TypeMembreController;
-use App\Models\Params;
-use App\Models\Parrainage;
 use App\Models\Parti;
 use App\Models\PartiUser;
 use App\Models\User;
@@ -17,9 +15,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Routing\ResponseFactory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -139,7 +135,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
         $user = $request->user();
         $user->password = Hash::make($validated["newPassword"]);
         $user->save();
-        Auth::user()->tokens->each(function ($token, $key) {
+        Auth::user()->tokens->each(function ($token) {
             $token->delete();
         });
 
@@ -162,6 +158,27 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::resource("structures", StructureController::class);
     Route::resource("cartes", CarteMembreController::class);
     Route::resource("types_membre", TypeMembreController::class);
+
+    Route::group(["prefix" => "elections/"],function (){
+        Route::get("departements_region/{region}",[PvBureauController::class,'getListDepartementsRegion']);
+        Route::get("communes_departement/{departement}",[PvBureauController::class,'getListCommuneDepartements']);
+        Route::get("centres_commune/{commune}",[PvBureauController::class,'getListCentresCommune']);
+        Route::get("bureaux_centre/{centre}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("pv_bureaux/{pvBureau}",[PvBureauController::class,'show']);
+        Route::get("candidats",[PvBureauController::class,'listCandidats']);
+        Route::post("pv_bureaux",[PvBureauController::class,'store']);
+        Route::post("pv_centres",[PvBureauController::class,'storePvCentre']);
+
+        //=================== Resultats ===================
+        Route::get("resultats",[PvBureauController::class,'resultatsGlob']);
+        Route::get("resultats/region/{region}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("resultats/departement/{departement}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("resultats/commune/{commune}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("resultats/centre/{centre}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("resultats/bureau/{bureau}",[PvBureauController::class,'getListBureauxCentre']);
+
+    });
+
 
 
 });
