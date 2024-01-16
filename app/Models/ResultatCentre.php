@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ResultatCentre extends Model
 {
     use HasFactory;
+    protected $fillable = [
+        "candidat_id",
+        "nombre_voix",
+    ];
    public function candidat(): BelongsTo
    {
        return $this->belongsTo(Candidat::class);

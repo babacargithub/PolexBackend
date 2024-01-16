@@ -171,7 +171,9 @@ Route::middleware(["auth:sanctum"])->group(function() {
 
         //=================== Resultats ===================
         Route::get("resultats",[PvBureauController::class,'resultatsGlob']);
+        Route::get("resultats/regions",[PvBureauController::class,'resultatsRegions']);
         Route::get("resultats/region/{region}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("resultats/departements",[PvBureauController::class,'resultatsDepartements']);
         Route::get("resultats/departement/{departement}",[PvBureauController::class,'getListBureauxCentre']);
         Route::get("resultats/commune/{commune}",[PvBureauController::class,'getListBureauxCentre']);
         Route::get("resultats/centre/{centre}",[PvBureauController::class,'getListBureauxCentre']);

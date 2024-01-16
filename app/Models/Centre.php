@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Centre extends Model
 {
@@ -21,6 +22,10 @@ class Centre extends Model
     public function commune(): BelongsTo
     {
         return $this->belongsTo(Commune::class);
+    }
+public function pvCentre(): HasOne
+{
+        return $this->hasOne(PvCentre::class);
     }
     public function bureaux(): HasMany
     {

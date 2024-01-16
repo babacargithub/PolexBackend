@@ -83,4 +83,5 @@ class ResultatBureauController extends Controller
     {
         //
     }
+
 }

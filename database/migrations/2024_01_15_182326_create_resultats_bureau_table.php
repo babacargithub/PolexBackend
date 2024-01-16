@@ -15,7 +15,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('resultats', function (Blueprint $table) {
+        Schema::create('resultats_bureaux', function (Blueprint $table) {
             $table->id();
             $table->foreignIdFor(PvBureau::class)->nullable(false)->constrained("pv_bureaux")->onDelete('cascade');
             $table->foreignIdFor(Candidat::class)->nullable(false)->constrained()->onDelete('cascade');

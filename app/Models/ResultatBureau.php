@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ResultatBureau extends Model
 {
     use HasFactory;
+    protected $table = "resultats_bureaux";
+
     protected $fillable = [
         "pv_bureau_id","candidat_id","nombre_voix" ];
     public function candidat(): BelongsTo
