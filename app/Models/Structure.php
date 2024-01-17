@@ -21,9 +21,28 @@ class Structure extends Model
     public function responsable(): BelongsTo
     {
         return $this->belongsTo(Membre::class);
+    } public function membre(): BelongsTo
+    {
+        return $this->belongsTo(Membre::class);
+    }
+    public function commune(): BelongsTo
+    {
+        return $this->belongsTo(Commune::class);
     }
     public function membres(): HasMany
     {
         return $this->hasMany(Membre::class);
+    }
+    protected $appends = [
+        "nombre_membres",
+        "responsable"
+    ];
+    public function getNombreMembresAttribute(): int
+    {
+        return $this->membres()->count();
+    }
+    public function getResponsableAttribute(): ?string
+    {
+        return $this->membre()->first() !== null ? $this->membre()->first()->nom_complet : null;
     }
 }

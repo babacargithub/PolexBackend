@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\BureauController;
+use App\Http\Controllers\CarteElectoralController;
 use App\Http\Controllers\CarteMembreController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MembreController;
@@ -7,6 +9,7 @@ use App\Http\Controllers\PartiController;
 use App\Http\Controllers\PvBureauController;
 use App\Http\Controllers\StructureController;
 use App\Http\Controllers\TypeMembreController;
+use App\Models\Departement;
 use App\Models\Parti;
 use App\Models\PartiUser;
 use App\Models\User;
@@ -153,12 +156,25 @@ Route::middleware(["auth:sanctum"])->group(function() {
         Route::get("structures",[DashboardController::class,"structures"]);
 
     });
-    Route::get("membres_commune/{commune}", [MembreController::class,'membresCommune']);
-    Route::resource("membres", MembreController::class);
-    Route::resource("structures", StructureController::class);
-    Route::resource("cartes", CarteMembreController::class);
-    Route::resource("types_membre", TypeMembreController::class);
+    // =================== CARTES ===================
+    Route::group(["prefix" => "cartes/"],function (){
+        Route::post("attribuer_lot/{membre}",[CarteMembreController::class,'attribuerLotCarte']);
+        Route::post("creer_lot_carte",[CarteMembreController::class,'creerLotCarte']);
+//        Route::get("{carte}",[CarteMembreController::class,'show']);
+//        Route::post("{membre}",[CarteMembreController::class,'attribuerLotCarte']);
+//        Route::put("{carte}",[CarteMembreController::class,'update']);
+//        Route::delete("{carte}",[CarteMembreController::class,'destroy']);
+    });
+    Route::group(["prefix" => "departements/"],function (){
 
+        Route::get("",[PvBureauController::class,'getListDepartements']);
+        Route::get("{departement}/structures",function (Departement $departement){
+            $departement->load("structures");
+            return $departement->structures;
+        });
+    });
+
+    // =================== Elections ===================
     Route::group(["prefix" => "elections/"],function (){
         Route::get("departements_region/{region}",[PvBureauController::class,'getListDepartementsRegion']);
         Route::get("communes_departement/{departement}",[PvBureauController::class,'getListCommuneDepartements']);
@@ -169,19 +185,38 @@ Route::middleware(["auth:sanctum"])->group(function() {
         Route::post("pv_bureaux",[PvBureauController::class,'store']);
         Route::post("pv_centres",[PvBureauController::class,'storePvCentre']);
 
+        // ========== Bureaux ==========
+        Route::get("bureaux",[BureauController::class,'index']);
+        Route::post("bureaux/representants",[BureauController::class,'storeRepresentant']);
+        Route::put("bureaux/designer_representant/{bureau}/{representant}",[BureauController::class,'designerRepresentant']);
+        Route::post("bureaux",[PvBureauController::class,'storeBureau']);
+        Route::put("bureaux/{bureau}",[PvBureauController::class,'updateBureau']);
+        Route::delete("bureaux/{bureau}",[PvBureauController::class,'deleteBureau']);
+        // ========== Centres ==========
+        Route::get("centres",[PvBureauController::class,'getListCentres']);
+        Route::get("centres/{centre}",[PvBureauController::class,'showCentre']);
+        Route::post("centres",[PvBureauController::class,'storeCentre']);
+        Route::put("centres/{centre}",[PvBureauController::class,'updateCentre']);
+
         //=================== Resultats ===================
         Route::get("resultats",[PvBureauController::class,'resultatsGlob']);
         Route::get("resultats/regions",[PvBureauController::class,'resultatsRegions']);
         Route::get("resultats/region/{region}",[PvBureauController::class,'getListBureauxCentre']);
         Route::get("resultats/departements",[PvBureauController::class,'resultatsDepartements']);
         Route::get("resultats/departement/{departement}",[PvBureauController::class,'getListBureauxCentre']);
-        Route::get("resultats/commune/{commune}",[PvBureauController::class,'getListBureauxCentre']);
-        Route::get("resultats/centre/{centre}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("resultats/communes/{commune}",[PvBureauController::class,'resultatsCommuneAggreges']);
+        Route::get("resultats/centres/{centre}",[PvBureauController::class,'resultatsCentreAggreges']);
         Route::get("resultats/bureau/{bureau}",[PvBureauController::class,'getListBureauxCentre']);
+        Route::get("carte_electorale",[CarteElectoralController::class,'index']);
 
     });
 
 
-
+    // =================== RESOURCES ===================
+    Route::get("membres_commune/{commune}", [MembreController::class,'membresCommune']);
+    Route::resource("membres", MembreController::class);
+    Route::resource("cartes", CarteMembreController::class);
+    Route::resource("types_membre", TypeMembreController::class);
+    Route::resource("structures", StructureController::class);
 });
 

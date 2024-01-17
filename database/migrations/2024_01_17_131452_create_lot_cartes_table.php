@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Commune;
 use App\Models\Membre;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -15,10 +14,12 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('structures', function (Blueprint $table) {
+        Schema::create('lot_cartes', function (Blueprint $table) {
             $table->id();
-            $table->string("nom")->nullable(false);
-            $table->string("type")->nullable(false);
+            $table->string("numero")->nullable(false)->unique();
+            $table->foreignIdFor(Membre::class)->nullable()->constrained()->onDelete('cascade');
+            $table->foreignIdFor(TypeCarteMembre::class)->nullable()->constrained()->onDelete('set null');
+
             $table->timestamps();
         });
     }
@@ -30,6 +31,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('structures');
+        Schema::dropIfExists('lot_cartes');
     }
 };

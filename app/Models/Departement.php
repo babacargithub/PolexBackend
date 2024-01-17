@@ -27,4 +27,8 @@ class Departement extends Model
     {
         return $this->hasManyThrough(Centre::class, Commune::class);
     }
+    public function structures(): HasManyThrough
+    {
+        return $this->hasManyThrough(Structure::class, Commune::class);
+    }
 }

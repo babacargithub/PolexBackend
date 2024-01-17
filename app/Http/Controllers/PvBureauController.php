@@ -256,4 +256,37 @@ class PvBureauController extends Controller
         return response($resultatsDepartements);
 
     }
+    public function resultatsCentreAggreges(Centre $centre)
+    {
+        //
+        $resultatsCentre
+         = \DB::select("SELECT  c.nom, SUM(rc.nombre_voix) as nombre_voix FROM resultat_centres as rc
+                                        INNER  JOIN pv_centres  pvc ON pvc.id = rc.pv_centre_id
+                                        INNER JOIN candidats  c ON c.id = rc.candidat_id
+                                        INNER  JOIN centres  ct ON ct.id = pvc.centre_id
+                                        WHERE rc.pv_centre_id = pvc.id AND ct.id = $centre->id
+                                        GROUP BY c.nom, ct.nom
+                                        ORDER BY nombre_voix DESC"
+        );
+
+        return  $resultatsCentre;
+
+    }
+
+    public function resultatsCommuneAggreges(Commune $commune)
+    {
+        //
+        return \DB::select("SELECT  c.nom, SUM(rb.nombre_voix) as nombre_voix FROM resultats_bureaux as rb
+                                       INNER  JOIN pv_bureaux  pvb ON pvb.id = rb.pv_bureau_id
+                                       INNER JOIN candidats  c ON c.id = rb.candidat_id
+                                       INNER  JOIN bureaux  b ON b.id = pvb.bureau_id
+                                       INNER  JOIN centres  ct ON ct.id = b.centre_id
+                                       INNER  JOIN communes  com ON com.id = ct.commune_id
+                                       WHERE rb.pv_bureau_id = pvb.id AND com.id = $commune->id
+                                       GROUP BY c.nom, com.nom
+                                       ORDER BY nombre_voix DESC"
+       );
+
+    }
+
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Commune;
 use App\Models\Membre;
 use App\Models\Structure;
 use App\Models\TypeCarteMembre;
@@ -21,6 +22,7 @@ return new class extends Migration
         });
         Schema::table('structures', function (Blueprint $table) {
             $table->foreignIdFor(Membre::class)->nullable()->constrained()->onDelete('set null');
+            $table->foreignIdFor(Commune::class)->nullable()->constrained()->onDelete('cascade');
             $table->unique(['nom', 'commune']);
         });
     }
