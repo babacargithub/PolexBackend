@@ -19,7 +19,7 @@ return new class extends Migration
         Schema::create('carte_membres', function (Blueprint $table) {
             $table->id();
             $table->string("numero")->nullable(false)->unique();
-            $table->foreignIdFor(Membre::class)->nullable()->constrained()->onDelete('cascade');
+            $table->foreignIdFor(Membre::class)->nullable()->unique()->constrained()->onDelete('cascade');
             $table->foreignIdFor(Structure::class)->nullable()->constrained()->onDelete('cascade');
             $table->boolean("vendue")->default(false);
             $table->foreignIdFor(TypeCarteMembre::class)->nullable()->constrained()->onDelete('cascade');

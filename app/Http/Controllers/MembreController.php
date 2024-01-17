@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Membre;
+use App\Models\TypeMembre;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -17,6 +18,19 @@ class MembreController extends Controller
     public function index()
     {
         //
+        return  Membre::all();
+    }
+
+ /**
+     * Display a listing of the resource.
+     *
+     * @return Membre[]|\Illuminate\Database\Eloquent\Collection|Response
+     */
+    public function getListResponsables()
+    {
+        //
+        // TODO un comment
+//        return  Membre::whereTypeMembreId(TypeMembre::where("nom","Responsable Cellule")->first()->id)->get();
         return  Membre::all();
     }
 

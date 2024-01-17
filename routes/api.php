@@ -156,10 +156,18 @@ Route::middleware(["auth:sanctum"])->group(function() {
         Route::get("structures",[DashboardController::class,"structures"]);
 
     });
+    // =================== MEMBRES ===================
+    Route::prefix("membres/")->group(function (){
+       Route::get('/responsables',[MembreController::class,'getListResponsables']);
+    });
+
     // =================== CARTES ===================
     Route::group(["prefix" => "cartes/"],function (){
         Route::post("attribuer_lot/{membre}",[CarteMembreController::class,'attribuerLotCarte']);
         Route::post("creer_lot_carte",[CarteMembreController::class,'creerLotCarte']);
+        Route::get("types_cartes/list",[CarteMembreController::class,'listTypeCartes']);
+        Route::put("{carte}/membre/{membre}",[CarteMembreController::class,'attribuerUneCarteAUnMembre']);
+        Route::get("lots/list",[CarteMembreController::class,'listDesLotsDeCarte']);
 //        Route::get("{carte}",[CarteMembreController::class,'show']);
 //        Route::post("{membre}",[CarteMembreController::class,'attribuerLotCarte']);
 //        Route::put("{carte}",[CarteMembreController::class,'update']);

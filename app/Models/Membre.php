@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Membre extends Model
 {
@@ -19,6 +20,10 @@ class Membre extends Model
         "structure_id",
         "type_membre_id",
     ];
+    public function carte(): HasOne
+    {
+        return $this->hasOne(CarteMembre::class);
+    }
     public function structure(): BelongsTo
     {
         return $this->belongsTo(Structure::class);

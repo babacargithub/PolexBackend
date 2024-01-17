@@ -12,11 +12,11 @@ class LotCarte extends Model
 {
     use HasFactory;
     protected $fillable = [
-        "nombre_carte","type_carte_membre_id","centre_id"
+        "nombre_carte","type_carte_membre_id","centre_id","nombre"
     ];
-    public function type_carte_membre(): HasMany
+    public function type_carte_membre(): BelongsTo
     {
-        return $this->hasMany(TypeCarteMembre::class);
+        return $this->belongsTo(TypeCarteMembre::class);
     }
     public function membre() : BelongsTo
     {

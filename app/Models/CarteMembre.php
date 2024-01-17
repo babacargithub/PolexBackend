@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CarteMembre extends Model
 {
@@ -12,4 +13,8 @@ class CarteMembre extends Model
         "numero",
         "membre_id",
     ];
+    public function membre(): BelongsTo
+    {
+        return $this->belongsTo(Membre::class);
+    }
 }
