@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreStructureRequest;
 use App\Http\Requests\UpdateStructureRequest;
+use App\Models\Commune;
+use App\Models\Membre;
 use App\Models\Structure;
 
 class StructureController extends Controller
@@ -16,9 +18,19 @@ class StructureController extends Controller
     public function index()
     {
         //
-        return  Structure::all();
+        return Structure::all()->map(function ($structure) {
+            $structure->load('membre');
+            return [
+                "id" => $structure->id,
+                "nom" => $structure->nom,
+                "type" => $structure->type,
+                "nombre_membres"=>$structure->membres->count(),
+                "commune" => $structure->commune->nom ?? "Inconnu",
+                "commune_id" => $structure->commune->id ?? 0,
+                "responsable" => $structure->membre->nom_complet ?? "Inconnu",
+            ];
+        });
     }
-
 
     /**
      * Store a newly created resource in storage.
@@ -30,6 +42,8 @@ class StructureController extends Controller
     {
         //
         $input = $request->validated();
+        $input["commune_id"] = Commune::whereNom($input["commune"])->first()->id;
+        unset($input["commune"]);
         $structure = new Structure($input);
         $structure->save();
         return  $structure;
@@ -38,12 +52,13 @@ class StructureController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Structure  $structure
-     * @return \Illuminate\Http\Response
+     * @param Structure $structure
+     * @return Structure
      */
     public function show(Structure $structure)
     {
         //
+        $structure->load('membres');
         return  $structure;
     }
 
@@ -52,13 +67,15 @@ class StructureController extends Controller
      * Update the specified resource in storage.
      *
      * @param  \App\Http\Requests\UpdateStructureRequest  $request
-     * @param  \App\Models\Structure  $structure
+     * @param Structure $structure
      * @return Structure
      */
     public function update(UpdateStructureRequest $request, Structure $structure)
     {
         //
         $input = $request->validated();
+        $input['commune_id'] = Commune::whereNom($input['commune'])->first()->id;
+        unset($input['commune']);
         $structure->update($input);
         return  $structure;
     }
@@ -66,7 +83,7 @@ class StructureController extends Controller
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Structure  $structure
+     * @param Structure $structure
      * @return \Illuminate\Http\Response
      */
     public function destroy(Structure $structure)
@@ -74,5 +91,11 @@ class StructureController extends Controller
         //
         $structure->delete();
         return  response()->noContent();
+    }
+    public function designerResponsable(Structure $structure, Membre $membre)
+    {
+        $structure->membre()->associate($membre);
+        $structure->save();
+        return $structure;
     }
 }

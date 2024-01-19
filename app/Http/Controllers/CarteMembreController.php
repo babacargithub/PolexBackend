@@ -48,11 +48,22 @@ class CarteMembreController extends Controller
      * @return Membre
      * @throws Exception
      */
-    public function attribuerUneCarteAUnMembre(Request $request, CarteMembre $carte, Membre $membre)
+    public function attribuerUneCarteAUnMembre(Request $request, Membre $membre, CarteMembre $numeroCarte )
     {
-        $carte->membre()->associate($membre);
-        $carte->vendu_le = now();
-        $carte->save();
+
+        if ($numeroCarte->membre_id !== null) {
+            abort(422,"Cette carte est déjà attribuée à un membre");
+        }
+        if ($numeroCarte->vendu_le !== null) {
+            abort(422,"Cette carte est déjà vendue");
+        }
+        $membre->load("carte");
+        if ($membre->carte !== null) {
+            abort(422,"Ce membre a déjà une carte");
+        }
+        $numeroCarte->membre()->associate($membre);
+        $numeroCarte->vendu_le = now();
+        $numeroCarte->save();
 
         return $membre;
     }

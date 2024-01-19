@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Commune;
 use App\Models\Membre;
+use App\Models\Structure;
 use App\Models\TypeMembre;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -13,7 +16,7 @@ class MembreController extends Controller
     /**
      * Display a listing of the resource.
      *
-     * @return Membre[]|\Illuminate\Database\Eloquent\Collection|Response
+     * @return Membre[]|Collection|Response
      */
     public function index()
     {
@@ -24,7 +27,7 @@ class MembreController extends Controller
  /**
      * Display a listing of the resource.
      *
-     * @return Membre[]|\Illuminate\Database\Eloquent\Collection|Response
+     * @return Membre[]|Collection|Response
      */
     public function getListResponsables()
     {
@@ -50,14 +53,15 @@ class MembreController extends Controller
             "telephone" => "required||unique:membres,telephone",
             "sexe" => "required",
             "nin" => "required|unique:membres,nin",
-            "commune"=>"required",
             "structure_id" => "required",
             "type_membre_id" => "required",
 
         ]);
 
+
         $membre = new Membre($input);
         $membre->save();
+        $membre->load("structure","typeMembre");
         return  $membre;
     }
 
@@ -83,7 +87,20 @@ class MembreController extends Controller
     public function update(Request $request, Membre $membre)
     {
         //
-        $membre->update($request->all());
+        $input = $request->validate([
+            "nom" => "string",
+            "prenom" => "string",
+            "telephone" => "integer|unique:membres,telephone,".$membre->id,
+            "sexe" => "string",
+            "nin" => "string|unique:membres,nin,".$membre->id,
+            "commune"=>"string",
+            "structure_id" => "integer|exists:structures,id",
+            "type_membre_id" => "integer:exists:type_membres,id",
+
+        ]);
+        $input["commune_id"] = Commune::whereNom($input["commune"])->first()->id;
+        unset($input["commune"]);
+        $membre->update($input);
         return  $membre;
     }
 
@@ -102,5 +119,10 @@ class MembreController extends Controller
 
     public function membresCommune($commune){
         return Membre::where("commune",$commune)->get();
+    }
+
+    public function membresStructure(Structure $structure)
+    {
+        return $structure->membres()->get();
     }
 }

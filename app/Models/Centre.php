@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class Centre extends Model
 {
@@ -23,9 +24,14 @@ class Centre extends Model
     {
         return $this->belongsTo(Commune::class);
     }
-public function pvCentre(): HasOne
-{
-        return $this->hasOne(PvCentre::class);
+    public function representant(): MorphOne
+    {
+        return $this->morphOne(RepresBureau::class, 'lieu_vote');
+    }
+
+    public function pvCentre(): MorphOne
+    {
+        return $this->morphOne(PvBureau::class, 'typeable');
     }
     public function bureaux(): HasMany
     {

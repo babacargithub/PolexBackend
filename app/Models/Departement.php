@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 class Departement extends Model
 {
@@ -30,5 +31,9 @@ class Departement extends Model
     public function structures(): HasManyThrough
     {
         return $this->hasManyThrough(Structure::class, Commune::class);
+    }
+    public function pvBureau(): MorphOne
+    {
+        return $this->morphOne(PvBureau::class, 'typeable');
     }
 }

@@ -3,12 +3,15 @@
 use App\Http\Controllers\BureauController;
 use App\Http\Controllers\CarteElectoralController;
 use App\Http\Controllers\CarteMembreController;
+use App\Http\Controllers\CommuneController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MembreController;
 use App\Http\Controllers\PartiController;
 use App\Http\Controllers\PvBureauController;
+use App\Http\Controllers\RepresBureauController;
 use App\Http\Controllers\StructureController;
 use App\Http\Controllers\TypeMembreController;
+use App\Models\Commune;
 use App\Models\Departement;
 use App\Models\Parti;
 use App\Models\PartiUser;
@@ -74,6 +77,18 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
         "should_change_password" => (Hash::check("0000", $user->password) || Hash::check("1234", $user->password))
     ]);
 }
+Route::post('/upload_pv/{pvBureau}', function (\App\Models\PvBureau $pvBureau, Request $request) {
+    if ($request->hasFile('file')) {
+        $file = $request->file('file');
+        $pvBureau->setPhotoAttribute($file);
+        $pvBureau->save();
+        return response()->json('submitted', 200);
+    } else {
+        return response()->json(['message'=>'Aucun fichier soumis !'], 422);
+    }
+
+})->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class,'auth:sanctum']);
+
 
 Route::post('/login', function (Request $request){
     $credentials = $request->validate([
@@ -151,16 +166,25 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::put("users/{user}/reset_password",[PartiController::class,"resetUserPassword"]);
     Route::put("users/{user}/add_role/{role}",[PartiController::class,"userAddRole"]);
     Route::put("users/{user}/remove_role/{role}",[PartiController::class,"removeUserRole"]);
+    // =================== DASHBOARD ===================
     Route::group(["prefix" => "dashboard/"],function (){
         Route::get("",[DashboardController::class,"index"]);
+        Route::get("cartographie",[DashboardController::class,"cartographie"]);
         Route::get("structures",[DashboardController::class,"structures"]);
 
     });
     // =================== MEMBRES ===================
     Route::prefix("membres/")->group(function (){
        Route::get('/responsables',[MembreController::class,'getListResponsables']);
+       Route::get('structure/{structure}',[MembreController::class,'membresStructure']);
+       Route::put('{membre}/attribuer_carte/{numeroCarte} ',[CarteMembreController::class,'attribuerUneCarteAUnMembre']);
     });
+    // =================== STRUCTURES ===================
 
+    Route::group(["prefix" => "structures/"],function (){
+
+        Route::put("{structure}/designer_responsable/{membre}",[StructureController::class,'designerResponsable']);
+    });
     // =================== CARTES ===================
     Route::group(["prefix" => "cartes/"],function (){
         Route::post("attribuer_lot/{membre}",[CarteMembreController::class,'attribuerLotCarte']);
@@ -186,16 +210,31 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::group(["prefix" => "elections/"],function (){
         Route::get("departements_region/{region}",[PvBureauController::class,'getListDepartementsRegion']);
         Route::get("communes_departement/{departement}",[PvBureauController::class,'getListCommuneDepartements']);
-        Route::get("centres_commune/{commune}",[PvBureauController::class,'getListCentresCommune']);
+        Route::get("centres_commune/{departement}/{commune}",[PvBureauController::class,'getListCentresCommune']);
         Route::get("bureaux_centre/{centre}",[PvBureauController::class,'getListBureauxCentre']);
         Route::get("pv_bureaux/{pvBureau}",[PvBureauController::class,'show']);
         Route::get("candidats",[PvBureauController::class,'listCandidats']);
         Route::post("pv_bureaux",[PvBureauController::class,'store']);
         Route::post("pv_centres",[PvBureauController::class,'storePvCentre']);
+        Route::get("elections/carte_electorale",[CarteElectoralController::class,'index']);
 
         // ========== Bureaux ==========
         Route::get("bureaux",[BureauController::class,'index']);
-        Route::post("bureaux/representants",[BureauController::class,'storeRepresentant']);
+        Route::get("bureaux_centre/{commune}/{centre}",function ($commune, $centre){
+
+            $commune = Commune::whereNom($commune)->firstOrFail();
+            $centre = $commune->centres()->whereNom($centre)->firstOrFail();
+            $centre->load("bureaux");
+            $centre->bureaux->load('pvBureau');
+            if (\request()->query('with_representant')){
+                $centre->bureaux->load('representant');
+            }
+            return $centre->bureaux;
+        });
+        Route::get("bureaux/representants",[RepresBureauController::class,'listRepres']);
+        Route::delete("bureaux/representants/{represBureau}",[RepresBureauController::class,'destroy']);
+        Route::get("bureaux/representants/index",[RepresBureauController::class,'index']);
+        Route::post("bureaux/representants",[RepresBureauController::class,'store']);
         Route::put("bureaux/designer_representant/{bureau}/{representant}",[BureauController::class,'designerRepresentant']);
         Route::post("bureaux",[PvBureauController::class,'storeBureau']);
         Route::put("bureaux/{bureau}",[PvBureauController::class,'updateBureau']);
@@ -208,6 +247,8 @@ Route::middleware(["auth:sanctum"])->group(function() {
 
         //=================== Resultats ===================
         Route::get("resultats",[PvBureauController::class,'resultatsGlob']);
+        Route::get("pv_remontes",[PvBureauController::class,'pvRemontes']);
+        Route::get("resultats_detailles",[PvBureauController::class,'resultatsDetailles']);
         Route::get("resultats/regions",[PvBureauController::class,'resultatsRegions']);
         Route::get("resultats/region/{region}",[PvBureauController::class,'getListBureauxCentre']);
         Route::get("resultats/departements",[PvBureauController::class,'resultatsDepartements']);
@@ -223,6 +264,7 @@ Route::middleware(["auth:sanctum"])->group(function() {
     // =================== RESOURCES ===================
     Route::get("membres_commune/{commune}", [MembreController::class,'membresCommune']);
     Route::resource("membres", MembreController::class);
+    Route::resource("communes", CommuneController::class);
     Route::resource("cartes", CarteMembreController::class);
     Route::resource("types_membre", TypeMembreController::class);
     Route::resource("structures", StructureController::class);
