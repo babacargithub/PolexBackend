@@ -14,7 +14,7 @@ class Structure extends Model
     use CrudTrait;
     protected $fillable = [
         "nom",
-        "commune",
+        "commune_id",
         "membre_id",
         "type"
     ];

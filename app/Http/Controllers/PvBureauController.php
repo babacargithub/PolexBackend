@@ -200,8 +200,18 @@ class PvBureauController extends Controller
     }
     public function resultatsGlob()
     {
-        //
-        return \DB::select("SELECT candidats.id,candidats.nom,candidats.photo, SUM(resultats_bureaux.nombre_voix) as nombre_voix FROM candidats,resultats_bureaux WHERE candidats.id = resultats_bureaux.candidat_id GROUP BY candidats.id, candidats.nom,candidats.photo ORDER BY nombre_voix DESC");
+        $candidats = Candidat::all();
+        $resultats = $candidats->map(function (Candidat $candidat){
+            return [
+                "id"=>$candidat->id,
+                "nom"=>$candidat->nom,
+                "photo"=>'storage/'.$candidat->photo,
+                "nombre_voix"=>rand(1000,9999)
+            ];
+        });
+        return  $resultats;
+            //TODO uncomment
+//        return \DB::select("SELECT candidats.id,candidats.nom,candidats.photo, SUM(resultats_bureaux.nombre_voix) as nombre_voix FROM candidats,resultats_bureaux WHERE candidats.id = resultats_bureaux.candidat_id GROUP BY candidats.id, candidats.nom,candidats.photo ORDER BY nombre_voix DESC");
 
     }
 

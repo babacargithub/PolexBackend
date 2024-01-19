@@ -26,9 +26,9 @@ class UpdateStructureRequest extends FormRequest
     {
         return [
             "nom"=>"string",
-            "commune"=>"string",
+            "commune"=>"string:exists:communes,nom",
             "membre_id"=>"integer",
-            "type"=>["required", Rule::in(['Cellule', 'Section','Coordination',"Structure Alliée","Fédération","Mouvement Interne","Autre"]),]
+            "type"=>["required", Rule::in(['cellule', 'section','coordination',"structure Alliée","fédération","mouvement interne","Autre"]),]
             //
         ];
     }
