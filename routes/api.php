@@ -15,6 +15,7 @@ use App\Models\Commune;
 use App\Models\Departement;
 use App\Models\Parti;
 use App\Models\PartiUser;
+use App\Models\PvBureau;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Contracts\Foundation\Application;
@@ -77,7 +78,7 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
         "should_change_password" => (Hash::check("0000", $user->password) || Hash::check("1234", $user->password))
     ]);
 }
-Route::post('/upload_pv/{pvBureau}', function (\App\Models\PvBureau $pvBureau, Request $request) {
+Route::post('/upload_pv/{pvBureau}', function (PvBureau $pvBureau, Request $request) {
     if ($request->hasFile('file')) {
         $file = $request->file('file');
         $pvBureau->setPhotoAttribute($file);
@@ -184,6 +185,9 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::group(["prefix" => "structures/"],function (){
 
         Route::put("{structure}/designer_responsable/{membre}",[StructureController::class,'designerResponsable']);
+        Route::get("departement/{departement}",[StructureController::class,'getListeStructuresDepartement']);
+        Route::get("region/{region}",[StructureController::class,'getListeStructuresRegion']);
+        Route::get("commune/{departement}/{commune}",[StructureController::class,'getListeStructuresCommune']);
     });
     // =================== CARTES ===================
     Route::group(["prefix" => "cartes/"],function (){
@@ -215,6 +219,11 @@ Route::middleware(["auth:sanctum"])->group(function() {
         Route::get("pv_bureaux/{pvBureau}",[PvBureauController::class,'show']);
         Route::get("candidats",[PvBureauController::class,'listCandidats']);
         Route::post("pv_bureaux",[PvBureauController::class,'store']);
+        Route::put("pv_bureaux/certifier/{pvBureau}",function (PvBureau $pvBureau){
+            $pvBureau->certifie = true;
+            $pvBureau->save();
+            return $pvBureau;
+        });
         Route::post("pv_centres",[PvBureauController::class,'storePvCentre']);
         Route::get("elections/carte_electorale",[CarteElectoralController::class,'index']);
 

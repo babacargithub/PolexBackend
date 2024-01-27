@@ -142,11 +142,11 @@ class PvBureauController extends Controller
             ->firstOrFail();
 
 
-        return response( $commune->centres()->withCount('bureaux')->get()->map(function ($centre){
+        return response( $commune->centres()->withCount('bureaux')->get()->map(function ($centre) use($commune){
             return [
                 'id' => $centre->id,
                 'nom' => $centre->nom,
-                //TODO change
+                "commune"=> $commune->nom,
                 'representant'=> $centre->representant,
                 'nombre_bureaux' => $centre->bureaux_count,
             ];
@@ -253,7 +253,7 @@ class PvBureauController extends Controller
                     ];
                 });
             });
-        $resultsCommunes = DB::table('pv_bureaux')
+       $resultsCommunes = DB::table('pv_bureaux')
             ->join('resultats_bureaux', 'pv_bureaux.id', '=', 'resultats_bureaux.pv_bureau_id')
             ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
             ->join('centres', 'pv_bureaux.typeable_id', '=', 'centres.id')
@@ -277,6 +277,7 @@ class PvBureauController extends Controller
                     ];
                 });
             });
+
         $resultsParCandidats = DB::table('pv_bureaux')
             ->join('resultats_bureaux', 'pv_bureaux.id', '=', 'resultats_bureaux.pv_bureau_id')
             ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
@@ -322,13 +323,42 @@ class PvBureauController extends Controller
                     ];
                 });
             });
+        //TODO make dynamic later
+        $candidat = Candidat::all();
+        $resultsParCandidatsCommunes = [];
+        foreach ($candidat as $candidat) {
+            $resultsParCandidatsCommunes[$candidat->nom] = [
+                "regions"=> Region::all()->map(function (Region $region) use ($candidat){
+                    return [
+                         "region"=>$region->nom,
+                                "departements"=>$region->departements()->get()->map(function (Departement $departement){
+                                    return [
+                                        "nom"=>$departement->nom,
+                                        "communes"=>$departement->communes()->get()->map(function (Commune $commune){
+                                            return [
+                                                "nom"=>$commune->nom,
+                                                "nombre_voix"=>random_int(9999,99999),
+                                                "pourcentage"=>random_int(1,99)
+
+                                            ];
+                                        })
+                                    ];
+                                })];
+
+                })
+
+
+            ];
+        }
+
         return [
             'stats_remontes_pv' => $statsRemontesPv,
             'regions' => $resultatsParRegions,
             'departements' => $resultatsParDepartements,
             'communes' => $resultatsParCommunes,
            'par_candidats_regions' => $resultsParCandidats,
-            'par_candidats_departements' => $resultsParCandidatsDepartements
+            'par_candidats_departements' => $resultsParCandidatsDepartements,
+            'par_candidats_communes' => $resultsParCandidatsCommunes
         ];
 
     }

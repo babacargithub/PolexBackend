@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Bureau;
 use App\Models\Centre;
 use App\Models\Commune;
+use App\Models\Departement;
 use App\Utils\CarteElectoralData;
 use Illuminate\Http\Request;
 
@@ -30,8 +31,8 @@ class CarteElectoralController extends Controller
            "departements"=>
            array_map(function($item)use($nombresInscrit){
                return [
-                   //TODO: fix region
-                    'region'=>'',
+
+                    'region'=>Departement::whereNom($item["departement"])->first()?? null,
                     'departement'=>$item["departement"],
                     'inscrits'=> $item["total"],
                    "pourcentage"=> floatval(number_format(($item["total"]*100/$nombresInscrit), 3, '.', ''))

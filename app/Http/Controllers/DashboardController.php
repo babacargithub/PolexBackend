@@ -22,20 +22,7 @@ class DashboardController extends Controller
             'nombre_cellules'=> Structure::whereType('Cellule')->count(),
             'nombre_sections'=> Structure::whereType('Section')->count(),
             'nouveaux_membres'=> Membre::whereDate('created_at',today()->toDateString())->count(),
-            //TODO uncomment latet
-            /*'nombre_structures_alliees'=> Structure::whereType('Structure Alliée')->count(),
-            'nombre_federations'=> Structure::whereType('Fédération')->count(),
-            'nombre_mouvements_internes'=> Structure::whereType('Mouvement Interne')->count(),
-            'nombre_autres'=> Structure::whereType('Autre')->count(),
-            'nombre_membres_crees_aujourdhui'=> Membre::whereDate('created_at', today())->count(),
-            'nombre_membres_crees_semaine'=> Membre::whereBetween('created_at', [today()->startOfWeek(), today()->endOfWeek()])->count(),
-            'nombre_membres_crees_mois'=> Membre::whereMonth('created_at', today()->month)->count(),
-            'nombre_membres_crees_annee'=> Membre::whereYear('created_at', today()->year)->count(),*/
-            //TODO uncomment latet
-           /* "Structure vedette"=> \DB::select( 'SELECT st.nom, COUNT(*) AS nombre FROM membres
-                                    INNER JOIN structures st ON membres.structure_id = st.id
-                                     GROUP BY st.nom
-                                     ORDER BY st.nom  DESC LIMIT 1'),*/
+
             "structures" => [
                 "Cellule" => Structure::whereType('Cellule')->count(),
                 "Section" => Structure::whereType('Section')->count(),
@@ -138,7 +125,7 @@ class DashboardController extends Controller
         "Kaffrine",
         "Fatick"];
 
-         $departementsData = \DB::select( 'SELECT d.nom, COUNT(*) AS nombre FROM membres
+         $departementsMembres = \DB::select( 'SELECT d.nom, COUNT(*) AS nombre FROM membres
                                     INNER JOIN structures st ON membres.structure_id = st.id
                                     INNER JOIN  communes c ON st.commune_id = c.id
                                     INNER JOIN  departements d ON c.departement_id = d.id
@@ -149,27 +136,32 @@ class DashboardController extends Controller
                                     INNER JOIN  departements d ON c.departement_id = d.id
                                      GROUP BY d.nom
                                      ORDER BY d.nom');
-         $departementsNom = array_map(function ($item){
-                return  $item->nom;
-            },$departementsData);
-         $departementsCellulesNom = array_map(function ($item){
-                return  $item->nom;
-            },$departementsStructures);
+        $departementsMembresFormatted =[] ;
+        $departementsStructuresFormatted =[] ;
+        foreach ($departementsMembres as $departementsMembre) {
+            $departementsMembresFormatted[ $departementsMembre->nom] = $departementsMembre;
+
+        }
+        foreach ($departementsStructures as $departementsStructure) {
+            $departementsStructuresFormatted[ $departementsStructure->nom] = $departementsStructure;
+
+        }
+
+
 
          $donnesOK = [];
 
         foreach ($DEPARTEMENT_FROM_MAPS as $name) {
             $name_transformed = strtoupper(str_replace("-"," ",str_replace("è","e", str_replace("é","e", $name))));
             $item = [];
-            if(in_array($name_transformed,$departementsNom)){
-                $item["membres"] =  $departementsData[array_search($name_transformed,$departementsNom)]->nombre;
+            if(in_array($name_transformed,array_keys($departementsMembresFormatted))){
+                $item["membres"] =  $departementsMembresFormatted[$name_transformed]->nombre;
             }else{
                 $item["membres"] =  0;
             }
-            if(in_array($name_transformed,$departementsCellulesNom)){
-                //TODO uncomment later
-//                $item["cellules"] = $departementsData[array_search($name_transformed,$departementsCellulesNom)]->nombre;
-                $item["cellules"] = 122;
+            if(in_array($name_transformed,array_keys($departementsStructuresFormatted))){
+
+                $item["cellules"] =  $departementsStructuresFormatted[$name_transformed]->nombre;
             }else{
                 $item["cellules"] =  0;
             }
@@ -181,11 +173,36 @@ class DashboardController extends Controller
         return [
             "regions"=> $this->getRegionData(),
             "departements"=> $donnesOK,
-            "communes"=> \DB::select( 'SELECT c.nom, COUNT(*) AS nombre FROM membres
-                                    INNER JOIN structures st ON membres.structure_id = st.id
-                                    INNER JOIN  communes c ON st.commune_id = c.id
-                                     GROUP BY c.nom
-                                     ORDER BY c.nom'),
+            //TODO CHANGE LATER
+//            "communes"=> \DB::select( 'SELECT c.nom, COUNT(*) AS nombre FROM membres
+//                                    INNER JOIN structures st ON membres.structure_id = st.id
+//                                    INNER JOIN  communes c ON st.commune_id = c.id
+//                                     GROUP BY c.nom
+//                                     ORDER BY c.nom'),
+        "communes"=>Region::all()->map(function ($region){
+            return [
+                "nom"=>$region->nom,
+                "departements"=>$region->departements()->get()->map(function ($departement){
+                    return[
+                        "nom"=>$departement->nom,
+                        "communes"=>$departement->communes()->get()->map(function ($commune){
+                            return [
+                                "nom"=>$commune->nom,
+                                "cellules"=> $commune->structures()->count(),
+                                "membres"=> $commune->membres()->count(),
+                                "cartes_vendues"=>0,
+
+
+                            ];
+
+                        })
+                    ];
+                }
+                )
+
+            ];
+
+        })
 
         ];
 

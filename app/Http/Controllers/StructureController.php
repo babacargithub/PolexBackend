@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreStructureRequest;
 use App\Http\Requests\UpdateStructureRequest;
 use App\Models\Commune;
+use App\Models\Departement;
 use App\Models\Membre;
+use App\Models\Region;
 use App\Models\Structure;
 
 class StructureController extends Controller
@@ -78,6 +80,31 @@ class StructureController extends Controller
         unset($input['commune']);
         $structure->update($input);
         return  $structure;
+    }
+    public function getListeStructuresDepartement($departement)
+    {
+        $departement = Departement::whereNom($departement)->with('structures')->firstOrFail();
+        return $departement->structures;
+
+    }
+    public function getListeStructuresCommune($departement, $commune)
+    {
+        $commune = Commune::whereNom($commune)->whereRelation('departement','nom',$departement)->with('structures')->firstOrFail();
+        return $commune->structures;
+
+    }
+
+    public function getListeStructuresRegion($region)
+    {
+        $departements = Region::whereNom($region)->with('departements')->firstOrFail();
+
+        $structures = [];
+        foreach ($departements->departements as $departement) {
+            $structures = array_merge($structures, $departement->structures->toArray());
+        }
+        return $structures;
+
+
     }
 
     /**
