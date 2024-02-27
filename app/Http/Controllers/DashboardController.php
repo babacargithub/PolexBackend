@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Bureau;
 use App\Models\CarteMembre;
+use App\Models\Centre;
 use App\Models\Departement;
 use App\Models\LotCarte;
 use App\Models\Membre;
 use App\Models\Region;
 use App\Models\Structure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -41,6 +45,23 @@ class DashboardController extends Controller
                                    INNER JOIN type_membres tm ON membres.type_membre_id = tm.id
                                      GROUP BY tm.nom
                                      ORDER BY tm.nom'),
+            "structuration_politique"=> DB::select('SELECT tm.nom, COUNT(*) AS nombre FROM membres m
+                                  INNER JOIN type_membres tm ON m.type_membre_id = tm.id
+                                  LEFT JOIN organigrammes og ON og.type_membre_id = tm.id
+                                   WHERE tm.nom IN  (SELECT nom FROM type_membres INNER JOIN organigrammes ON type_membres.id = organigrammes.type_membre_id WHERE type_organigramme = "politique")
+                                  GROUP BY tm.nom, og.position
+                                  ORDER BY og.position'),
+            "structuration_electorale"=> $this->structurationElectorale(),
+            'dernieres_notifications'=>$this->getDernieresNotifications(),
+            // TODO MAKE THIS DYNAMIC
+            "objectif_massif_mensuel"=> 34,
+            "top_structures"=> \DB::select('SELECT st.nom, COUNT(*) AS nombre FROM membres m
+                                  INNER JOIN structures st ON m.structure_id = st.id
+                                  GROUP BY st.nom
+                                  ORDER BY nombre DESC
+                                  LIMIT 5'),
+            "evolution_adhesions_et_ventes_cartes"=> $this->evolutionAdhesionsEtVentesCartes(),
+            "origine_des_membres"=> $this->origineDesMembres(),
 
         ];
         return $data;
@@ -270,5 +291,102 @@ class DashboardController extends Controller
             $regionDataTransformed[] = $item;
         }
         return $regionDataTransformed;
+    }
+
+    private function getDernieresNotifications()
+    {
+        // TODO change later
+        $structures = Structure::with('commune.departement.region')->limit(10)->get();
+
+        $notifications = [];
+
+        foreach ($structures as $structure) {
+            $notifications[] = [
+                "label" => "Structure crée : ". $structure->nom,
+                "created_at" => $structure->created_at,
+                'type_notif'=>"structure",
+                'extra_data'=>[  "id" => $structure->id,
+                    "structure" => $structure->nom,
+                    "type" => $structure->type,
+                    "commune" => $structure->commune->nom,
+                    "departement" => $structure->commune->departement->nom,
+                    "region" => $structure->commune->departement->region->nom,
+                    "date_creation" => $structure->created_at],
+            ];
+        }
+
+        return $notifications;
+
+    }
+
+    private function structurationElectorale()
+    {
+        $nombre_required = [
+            "Mandataire national"=> 1,
+            "Plénipotentiaire de département"=> Departement::count(),
+            "Plénipotentiaire d'arrondissement"=> 132,
+            'Représentant de centre'=> Centre::count(),
+            'Représentant de bureau'=> Bureau::count(),
+
+        ];
+
+        $data = DB::select('SELECT tm.nom, COUNT(*) AS nombre FROM membres m
+                                  INNER JOIN type_membres tm ON m.type_membre_id = tm.id
+                                  LEFT JOIN organigrammes og ON og.type_membre_id = tm.id
+                                   WHERE tm.nom IN  (SELECT nom FROM type_membres INNER JOIN organigrammes ON type_membres.id = organigrammes.type_membre_id WHERE type_organigramme = "electorale")
+                                  GROUP BY tm.nom, og.position
+                                  ORDER BY og.position');
+        foreach ($data as $index=>$datum) {
+            $data[$index] = [
+                "nom"=>$datum->nom,
+                "nombre"=>$datum->nombre,
+                "nombre_requis"=> $nombre_required[$datum->nom] ?? 0,
+                "pourcentage"=>isset($nombre_required[$datum->nom]) ? round(($datum->nombre/$nombre_required[$datum->nom])*100,2): 0.0
+            ];
+        }
+
+      return $data;
+    }
+
+    private function evolutionAdhesionsEtVentesCartes()
+    {
+
+
+        $currentMonth = Carbon::now()->startOfMonth();
+        $currentMonthEnd = Carbon::now()->endOfMonth();
+
+        $data = [];
+
+        foreach ($currentMonth->weeksUntil($currentMonthEnd) as $index=>$week) {
+            $is_last = count($currentMonth->weeksUntil($currentMonthEnd)) == $index+1;
+            $start = clone $week;
+            $end =  !$is_last ? $week->addDays(6) : $week->addDays($currentMonthEnd->day - $week->day);
+
+            $periodStart = $start->toDateString();
+            $periodEnd = $end->toDateString();
+            $label = "Semaine du ".$start->format('d'). " au ".$end->format('d');
+
+
+            $data[] = [
+                "periode"=>$label,
+                "nouveaux_membres"=> Membre::whereBetween('created_at', [$periodStart, $periodEnd])
+                        ->count(),
+                "cartes_vendues"=>CarteMembre::whereBetween('created_at', [$periodStart, $periodEnd])
+                ->count()
+            ];
+        }
+       return  $data;
+
+    }
+
+    private function origineDesMembres()
+    {
+        return [
+            ["value"=>10, "name"=>"Adhérants en ligne"],
+            ["value"=>60, "name"=>"Inscrit par des responsables"],
+            ["value"=>20, "name"=>"Aliés"],
+            ["value"=>10, "name"=>"Autres"],
+
+        ];
     }
 }

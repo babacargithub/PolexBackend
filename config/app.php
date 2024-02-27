@@ -211,5 +211,22 @@ return [
     'aliases' => Facade::defaultAliases()->merge([
         // 'ExampleClass' => App\Example\ExampleClass::class,
     ])->toArray(),
+    // ======= APP CUSTOM CONFIGURATIONS =======
+    'wave_key' => env('WAVE_KEY'),
+    'wave_webhook_secret' => env('WAVE_WEBHOOK_SECRET'),
+    'om_api_key_base_64_encoded' => env('OM_API_KEY_BASE_64_ENCODED'),
+    'om_api_client_id' => env('OM_API_CLIENT_ID'),
+    'om_api_client_secret' => env('OM_API_CLIENT_SECRET'),
+    'om_merchant_msisdn' => env('OM_MERCHANT_MSISDN'),
+    'om_merchant_code' => env('OM_MERCHANT_CODE'),
+    'om_merchant_encrypted_pin' => env('OM_MERCHANT_ENCRYPTED_PIN'),
+    'om_secret_code' => env('OM_SECRET_CODE'),
+
+    // === SMS CONFIGURATIONS ===
+    'orange_sms_dns' => env('ORANGE_SMS_DNS'),
+    'orange_api_client_id' => env('ORANGE_API_CLIENT_ID'),
+    'orange_api_client_secret' => env('ORANGE_API_CLIENT_SECRET'),
+    'orange_api_sender_name' => env('ORANGE_API_SENDER_NAME'),
+    'orange_api_sender_number' => env('ORANGE_API_SENDER_NUMBER'),
 
 ];

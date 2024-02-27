@@ -15,9 +15,7 @@ use Illuminate\Database\Eloquent\Model;
  * @Property bool check_discriminant
  * @method static first()
  * @property int $id
- * @property string $discriminant_field_name
- * @property mixed $discriminant_field
- * @property bool $check_discriminant
+
  * @property int $min_count
  * @property int $max_count
  * @property int $count_per_region

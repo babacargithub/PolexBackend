@@ -1,18 +1,26 @@
 <?php
 
 use App\Http\Controllers\BureauController;
+use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\CarteElectoralController;
 use App\Http\Controllers\CarteMembreController;
+use App\Http\Controllers\CollecteController;
 use App\Http\Controllers\CommuneController;
+use App\Http\Controllers\CotizController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MembreController;
 use App\Http\Controllers\PartiController;
 use App\Http\Controllers\PvBureauController;
 use App\Http\Controllers\RepresBureauController;
+use App\Http\Controllers\RevenueController;
+use App\Http\Controllers\SmsBatchController;
+use App\Http\Controllers\SondageController;
 use App\Http\Controllers\StructureController;
 use App\Http\Controllers\TypeMembreController;
 use App\Models\Commune;
+use App\Models\Cotiz;
 use App\Models\Departement;
+use App\Models\Membre;
 use App\Models\Parti;
 use App\Models\PartiUser;
 use App\Models\PvBureau;
@@ -177,6 +185,8 @@ Route::middleware(["auth:sanctum"])->group(function() {
     // =================== MEMBRES ===================
     Route::prefix("membres/")->group(function (){
        Route::get('/responsables',[MembreController::class,'getListResponsables']);
+       Route::get('/categorie/{categorie}',[MembreController::class,'listMembresCategorie']);
+
        Route::get('structure/{structure}',[MembreController::class,'membresStructure']);
        Route::put('{membre}/attribuer_carte/{numeroCarte} ',[CarteMembreController::class,'attribuerUneCarteAUnMembre']);
     });
@@ -201,6 +211,90 @@ Route::middleware(["auth:sanctum"])->group(function() {
 //        Route::put("{carte}",[CarteMembreController::class,'update']);
 //        Route::delete("{carte}",[CarteMembreController::class,'destroy']);
     });
+
+    // =================== SONDAGES ===================
+    Route::group(["prefix" => "sondages/"],function (){
+        Route::get("",[SondageController::class,'index']);
+        Route::post("creer",[SondageController::class,'store']);
+        Route::get("{sondage}/questions",[SondageController::class,'questions']);
+        Route::post("{sondage}/ajouter_question",[SondageController::class,'ajouterQuestion']);
+        Route::post("questions/{question}/ajouter_reponse",[SondageController::class,'ajouterReponseAUneQuestion']);
+        Route::put("{sondage}",[SondageController::class,'update']);
+        Route::put("modifier_question/{question}",[SondageController::class,'modifierQuestion']);
+        Route::put("modifier_reponse_autorisee/{reponse}",[SondageController::class,'modifierReponseAutorisee']);
+        Route::delete("supprimer_question/{question}",[SondageController::class,'supprimerQuestion']);
+        Route::delete("supprimer_reponse/{reponse}",[SondageController::class,'supprimerReponse']);
+        Route::delete("{sondage}",[SondageController::class,'destroy']);
+        Route::get("{sondage}/resultats",[SondageController::class,'resultats']);
+        Route::get("{sondage}/reponses",[SondageController::class,'reponses']);
+        Route::post("{sondage}/vote",[SondageController::class,'saveResponse']);
+
+    });
+ // =================== FINANCES ===================
+    Route::group(["prefix" => "finances/"],function (){
+        // ==== cotisations ====
+        Route::post("cotisations",[CotizController::class,'store']);
+        Route::get("cotisations",[CotizController::class,'index']);
+        Route::put("cotisations/{cotiz}",[CotizController::class,'update']);
+        Route::post("cotisations/{cotiz}/verser",[CotizController::class,'addVersement']);
+        Route::get("cotisations/{cotiz}/versements",[CotizController::class,'versements']);
+        Route::get("cotisations/{cotiz}/membre/{membre}",function (Cotiz $cotiz, Membre $membre){
+            return response()->json(["membre"=>$membre,"cotiz"=>$cotiz]);
+        });
+        Route::post("cotisations/{cotiz}/envoyer_message_paiement",[CotizController::class,'envoyerMessagePaiement']);
+        Route::get("cotisations/{cotiz}",[CotizController::class,'show']);
+
+        // ===== collecte =======
+        Route::group(["prefix" => "collectes/"],function (
+        ){  Route::get("",[CollecteController::class,'index']);
+            Route::post("",[CollecteController::class,'store']);
+            Route::get("{collecte}/participants",[CollecteController::class,'participants']);
+            Route::post("collectes",[CollecteController::class,'store']);
+            Route::get("{collecte}",[CollecteController::class,'show']);
+            Route::put("{collecte}",[CollecteController::class,'update']);
+            Route::delete("{collecte}",[CollecteController::class,'delete']);
+            Route::post("{collecte}/participer",[CollecteController::class,'addParticipant']);
+        });
+
+        // =======  Caisse =======
+        Route::group(["prefix" => "caisse/"],function (){
+
+            Route::get("caisse_principale",[CaisseController::class,'index']);
+            Route::get("depenses",[CaisseController::class,'depenses']);
+            Route::post("new_depense",[CaisseController::class,'addDepense']);
+            Route::post("new_revenue",[CaisseController::class,'addRevenue']);
+            Route::get("revenues",[CaisseController::class,'revenues']);
+
+           });
+        // =======  Ventes =======
+        Route::group(["prefix" => "ventes/"],function (){
+
+            Route::get("recettes",[RevenueController::class,'recettesVentesCartes']);
+
+
+           });
+
+    });
+
+    // =================== SMS ===================
+
+    Route::group(["prefix" => "sms/"],function (){
+        Route::post("send",[SmsBatchController::class,'sendSMS']);
+        Route::get("batches",[SmsBatchController::class,'index']);
+        Route::post("batches",[SmsBatchController::class,'store']);
+        Route::put("batch_items/{batchItem}/send",[SmsBatchController::class,'sendBatchItem']);
+        Route::get("batches/{batch}",[SmsBatchController::class,'show']);
+        Route::put("batches/{batch}",[SmsBatchController::class,'update']);
+        Route::delete("batches/{batch}",[SmsBatchController::class,'delete']);
+        Route::post("batches/{batch}/send",[SmsBatchController::class,'send']);
+        Route::post("batches/{batch}/send_one/{item}",[SmsBatchController::class,'sendOne']);
+
+        Route::post('liste_destinataires',[SmsBatchController::class,'getListDestinataires']);
+        Route::get('type_destinataires',[SmsBatchController::class,'getDataPourTypesDestinataires']);
+    });
+
+    // =================== DEPARTEMENTS ===================
+
     Route::group(["prefix" => "departements/"],function (){
 
         Route::get("",[PvBureauController::class,'getListDepartements']);

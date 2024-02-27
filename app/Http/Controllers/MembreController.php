@@ -31,9 +31,6 @@ class MembreController extends Controller
      */
     public function getListResponsables()
     {
-        //
-        // TODO un comment
-//        return  Membre::whereTypeMembreId(TypeMembre::where("nom","Responsable Cellule")->first()->id)->get();
         return  Membre::all();
     }
 
@@ -125,4 +122,9 @@ class MembreController extends Controller
     {
         return $structure->membres()->get();
     }
+    public function listMembresCategorie($categorie)
+    {
+        return Membre::whereRelation("typeMembre","nom",'LIKE',$categorie)->get();
+    }
+
 }

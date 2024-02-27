@@ -33,3 +33,4 @@
 <li class="nav-item"><a class="nav-link" href="{{ backpack_url('commune') }}"><i class="nav-icon la la-question"></i> Communes</a></li>
 <li class="nav-item"><a class="nav-link" href="{{ backpack_url('centre') }}"><i class="nav-icon la la-question"></i> Centres</a></li>
 <li class="nav-item"><a class="nav-link" href="{{ backpack_url('bureau') }}"><i class="nav-icon la la-question"></i> Bureaus</a></li>
+<li class="nav-item"><a class="nav-link" href="{{ backpack_url('organigramme') }}"><i class="nav-icon la la-question"></i> Organigrammes</a></li>
