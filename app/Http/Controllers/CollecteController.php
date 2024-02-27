@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Collecte;
 use App\Models\CollecteParticipant;
+use App\Service\OrangeMoneyService;
+use App\Service\WaveService;
 use Illuminate\Http\Request;
 
 class CollecteController extends Controller
@@ -40,7 +42,7 @@ class CollecteController extends Controller
         $collecte->delete();
         return response(null, 204);
     }
-    public function addParticipant(Request $request, Collecte $collecte){
+    public function addParticipant(Request $request, Collecte $collecte, OrangeMoneyService $moneyService){
 
         $participant = new CollecteParticipant($request->validate([
             "nom"=>"required",
@@ -53,6 +55,31 @@ class CollecteController extends Controller
         $participant->reference = "REF".now()->format('YmdHis');
 
         $collecte->participants()->save($participant);
+        $metaData = [
+            "type"=>"collecte",
+            "collecte_id" => $collecte->id,
+            "participant_id" => $participant->id,
+            "telephone"=>$request->get('telephone')
+        ];
+        $data = [
+            "client_reference"=>json_encode($metaData),
+            "amount"=>$participant->montant,
+        ];
+        if ($participant->paye_par == "wave"){
+            $waveReponse = WaveService::getWavePaymentUrl($data);
+            $wave_launch_url = json_decode($waveReponse->content())->wave_launch_url ?? null;
+            return response()->json(["wave_launch_url"=>$wave_launch_url]);
+        }else if ($participant->paye_par == "om" || $participant->paye_par == "orange_money" ){
+            $data['metadata'] = $metaData;
+            $data['telephone'] = $request->get('telephone');
+            $omResponse = $moneyService->initOMPayment($data);
+            return  ["participant"=>$participant, "om_data"=>json_decode($omResponse->getContent())];
+
+        }
+        else if ($participant->paye_par == "carte" || $participant->paye_par == "fm") {
+            return response()
+                ->json(["message" => "Methode de paiement non supporté", 422]);
+        }
         return $participant;
     }
     public function participants(Collecte $collecte){

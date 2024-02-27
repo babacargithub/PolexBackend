@@ -39,7 +39,7 @@ class CotizController extends Controller
         $cotiz->delete();
         return response(null, 204);
     }
-    public function addVersement(Request $request, Cotiz $cotiz, OrangeMoneyService $omService, WaveService $waveService): JsonResponse|array
+    public function addVersement(Request $request, Cotiz $cotiz, OrangeMoneyService $omService): JsonResponse|array
     {
 
         $cotizVersement = new CotizVersement($request->validate([
@@ -59,8 +59,6 @@ class CotizController extends Controller
         $data = [
             "client_reference"=>json_encode($metaData),
             "amount"=>$cotizVersement->montant,
-            "telephone"=>$request->get('telephone'),
-            'metadata'=>$metaData,
         ];
         if ($cotizVersement->paye_par == "wave"){
 
@@ -71,7 +69,10 @@ class CotizController extends Controller
             return  ["cotiz"=>$cotiz, "versement"=>$cotizVersement, "wave_launch_url"=>$responseData->wave_launch_url];
         }
         else if ($cotizVersement->paye_par == "om"){
+            $data["telephone"] = $request->get('telephone');
+            $data['metadata'] = $metaData;
             $omResponse = $omService->initOMPayment($data);
+
            return  ["cotiz"=>$cotiz, "versement"=>$cotizVersement, "om_data"=>json_decode($omResponse->getContent())];
         }
         else  if ($cotizVersement->paye_par == "carte"){

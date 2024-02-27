@@ -362,6 +362,12 @@ Route::middleware(["auth:sanctum"])->group(function() {
         Route::get("carte_electorale",[CarteElectoralController::class,'index']);
 
     });
+    // =================== Type membre ===================
+    Route::group(["prefix" => "organigramme/"],function (){
+        Route::get("",[TypeMembreController::class,'organigramme']);
+        Route::put("",[TypeMembreController::class,'organigrammeUpdate']);
+
+    });
 
 
     // =================== RESOURCES ===================

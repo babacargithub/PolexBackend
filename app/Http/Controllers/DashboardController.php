@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Bureau;
 use App\Models\CarteMembre;
 use App\Models\Centre;
+use App\Models\Commune;
 use App\Models\Departement;
 use App\Models\LotCarte;
 use App\Models\Membre;
@@ -61,8 +62,7 @@ class DashboardController extends Controller
                                   ORDER BY nombre DESC
                                   LIMIT 5'),
             "evolution_adhesions_et_ventes_cartes"=> $this->evolutionAdhesionsEtVentesCartes(),
-            "origine_des_membres"=> $this->origineDesMembres(),
-
+            "origine_des_membres"=> $this->origineDesMembres()
         ];
         return $data;
     }
@@ -209,6 +209,10 @@ class DashboardController extends Controller
                         "communes"=>$departement->communes()->get()->map(function ($commune){
                             return [
                                 "nom"=>$commune->nom,
+                                // TODO make dynamique later
+                                "coordonnateurs_communaux"=> 0,
+                                "responsables_de_section"=> 0,
+                                "responsables_de_cellule"=> 0,
                                 "cellules"=> $commune->structures()->count(),
                                 "membres"=> $commune->membres()->count(),
                                 "cartes_vendues"=>0,
@@ -223,7 +227,10 @@ class DashboardController extends Controller
 
             ];
 
-        })
+        }),
+            'zones_non_representes'=> $this->communesEtRegionsFaibles(),
+            'cartographie_electorale'=> $this->cartographieElectorale()
+
 
         ];
 
@@ -381,6 +388,7 @@ class DashboardController extends Controller
 
     private function origineDesMembres()
     {
+        //TODO change later
         return [
             ["value"=>10, "name"=>"Adhérants en ligne"],
             ["value"=>60, "name"=>"Inscrit par des responsables"],
@@ -388,5 +396,67 @@ class DashboardController extends Controller
             ["value"=>10, "name"=>"Autres"],
 
         ];
+    }
+    public function communesEtRegionsFaibles()
+    {
+        $communesRepresentes = Structure::select('commune_id')->pluck('commune_id')->toArray();
+        $departementsRepresentes = Commune::select('departement_id')
+            ->whereIn('id', $communesRepresentes)
+            ->get()->pluck('departement_id')->toArray();
+        $departementsNonRepresentes = Departement::with('region')->whereNotIn('id', $departementsRepresentes)->get()->map(function ($departement){
+            return [
+                "nom"=>$departement->nom,
+                "region"=>$departement->region->nom
+            ];
+        })->groupBy('region');
+        $regionsRepresentes = Departement::select('region_id')
+            ->whereIn('id', $departementsRepresentes)
+            ->get()->pluck('region_id')->toArray();
+
+        $communesNonRepresentes = Region::all()->map(function (Region $region) use ($communesRepresentes){
+        return [
+            "nom"=>$region->nom,
+            "departements"=>$region->departements()->get()->map(function ($departement) use($communesRepresentes){
+                return[
+                    "nom"=>$departement->nom,
+                    "communes"=>$departement->communes()
+                        ->whereNotIn('id',$communesRepresentes)->get()->map(function ($commune){
+                        return [
+                            "nom"=>$commune->nom
+                        ];
+
+                    })
+                ];
+            }
+            )
+
+        ];
+
+    });
+
+        return [
+            "departements"=>$departementsNonRepresentes,
+            "communes"=>$communesNonRepresentes
+        ];
+
+
+    }
+
+    private function cartographieElectorale()
+    {
+        $organigramme_electoral = DB::select('SELECT tm.nom, COALESCE(m.nombre, 0) AS nombre
+                                  FROM type_membres tm
+                                  LEFT JOIN (
+                                      SELECT type_membre_id, COUNT(*) AS nombre
+                                      FROM membres
+                                      GROUP BY type_membre_id
+                                  ) m ON m.type_membre_id = tm.id
+                                  LEFT JOIN organigrammes og ON og.type_membre_id = tm.id
+                                  WHERE og.type_organigramme LIKE "electorale"
+                                  GROUP BY tm.nom, nombre, og.position
+                                  ORDER BY og.position');
+        return ["resume" => $organigramme_electoral, 'departements_representes'=>[], 'departements_non_representes'=>[],'arrondissements_representes'=>[],'arrondissements_non_representes'=>[]];
+
+
     }
 }
