@@ -82,7 +82,7 @@ class TypeMembreController extends Controller
     public function organigramme()
     {
         return  \DB::select('SELECT org.id, tm.nom as name, org.position FROM organigrammes org
-    INNER JOIN polex_crm.type_membres as tm ON tm.id = org.type_membre_id
+    INNER JOIN type_membres as tm ON tm.id = org.type_membre_id
                                     WHERE type_organigramme LIKE "politique"
                                     ORDER BY position');
 
