@@ -46,12 +46,7 @@ class DashboardController extends Controller
                                    INNER JOIN type_membres tm ON membres.type_membre_id = tm.id
                                      GROUP BY tm.nom
                                      ORDER BY tm.nom'),
-            "structuration_politique"=> DB::select('SELECT tm.nom, COUNT(*) AS nombre FROM membres m
-                                  INNER JOIN type_membres tm ON m.type_membre_id = tm.id
-                                  LEFT JOIN organigrammes og ON og.type_membre_id = tm.id
-                                   WHERE tm.nom IN  (SELECT nom FROM type_membres INNER JOIN organigrammes ON type_membres.id = organigrammes.type_membre_id WHERE type_organigramme = "politique")
-                                  GROUP BY tm.nom, og.position
-                                  ORDER BY og.position'),
+            "structuration_politique"=> $this->structurationPolitique(),
             "structuration_electorale"=> $this->structurationElectorale(),
             'dernieres_notifications'=>$this->getDernieresNotifications(),
             // TODO MAKE THIS DYNAMIC
@@ -302,8 +297,7 @@ class DashboardController extends Controller
 
     private function getDernieresNotifications()
     {
-        // TODO change later
-        $structures = Structure::with('commune.departement.region')->limit(10)->get();
+        $structures = Structure::with('commune.departement.region')->orderByDesc('created_at')->limit(10)->get();
 
         $notifications = [];
 
@@ -330,6 +324,7 @@ class DashboardController extends Controller
     {
         $nombre_required = [
             "Mandataire national"=> 1,
+            'Plénipotentiaire'=> 132 + Departement::count(),
             "Plénipotentiaire de département"=> Departement::count(),
             "Plénipotentiaire d'arrondissement"=> 132,
             'Représentant de centre'=> Centre::count(),
@@ -458,5 +453,18 @@ class DashboardController extends Controller
         return ["resume" => $organigramme_electoral, 'departements_representes'=>[], 'departements_non_representes'=>[],'arrondissements_representes'=>[],'arrondissements_non_representes'=>[]];
 
 
+    }
+
+    /**
+     * @return array
+     */
+    public function structurationPolitique(): array
+    {
+        return DB::select('SELECT tm.nom, COUNT(*) AS nombre FROM membres m
+                                  INNER JOIN type_membres tm ON m.type_membre_id = tm.id
+                                  LEFT JOIN organigrammes og ON og.type_membre_id = tm.id
+                                   WHERE tm.nom IN  (SELECT nom FROM type_membres INNER JOIN organigrammes ON type_membres.id = organigrammes.type_membre_id WHERE type_organigramme = "politique")
+                                  GROUP BY tm.nom, og.position
+                                  ORDER BY og.position');
     }
 }
