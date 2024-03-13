@@ -36,4 +36,13 @@ class Departement extends Model
     {
         return $this->morphOne(PvBureau::class, 'typeable');
     }
+    public function plenipots(): HasMany
+    {
+        return $this->hasMany(Plenipot::class);
+
+    }
+    public function comites(): HasMany
+    {
+        return $this->hasMany(ComiteElectoral::class);
+    }
 }

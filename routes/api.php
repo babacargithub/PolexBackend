@@ -5,11 +5,14 @@ use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\CarteElectoralController;
 use App\Http\Controllers\CarteMembreController;
 use App\Http\Controllers\CollecteController;
+use App\Http\Controllers\ComiteElectoralController;
 use App\Http\Controllers\CommuneController;
 use App\Http\Controllers\CotizController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\MembreComiteElectoralController;
 use App\Http\Controllers\MembreController;
 use App\Http\Controllers\PartiController;
+use App\Http\Controllers\PlenipotController;
 use App\Http\Controllers\PvBureauController;
 use App\Http\Controllers\RepresBureauController;
 use App\Http\Controllers\RevenueController;
@@ -17,6 +20,7 @@ use App\Http\Controllers\SmsBatchController;
 use App\Http\Controllers\SondageController;
 use App\Http\Controllers\StructureController;
 use App\Http\Controllers\TypeMembreController;
+use App\Models\ComiteRole;
 use App\Models\Commune;
 use App\Models\Cotiz;
 use App\Models\Departement;
@@ -366,6 +370,26 @@ Route::middleware(["auth:sanctum"])->group(function() {
     Route::group(["prefix" => "organigramme/"],function (){
         Route::get("",[TypeMembreController::class,'organigramme']);
         Route::put("",[TypeMembreController::class,'organigrammeUpdate']);
+
+    });
+ // =================== Type membre ===================
+    Route::group(["prefix" => "commites_electoraux/"],function (){
+        Route::get("",[ComiteElectoralController::class,'index']);
+        Route::post("",[ComiteElectoralController::class,'store']);
+        Route::get("objectifs",[ComiteElectoralController::class,'objectifs']);
+        Route::group(["prefix" => "plenipots/"],function (){
+            Route::get("",[PlenipotController::class,'index']);
+            Route::post("",[PlenipotController::class,'store']);
+
+        });
+        Route::get("roles",function (){
+            return ComiteRole::all();
+        });
+        Route::get("{comiteElectoral}",[ComiteElectoralController::class,'show']);
+        Route::get("{comiteElectoral}/logistics",[ComiteElectoralController::class,'logistics']);
+        Route::put("membres/{membre}/update",[MembreComiteElectoralController::class,'update']);
+        Route::post("{comiteElectoral}/create_membre",[MembreComiteElectoralController::class,'store']);
+        Route::put("{membre}/assigner_objectif",[MembreComiteElectoralController::class,'assignerObjectif']);
 
     });
 

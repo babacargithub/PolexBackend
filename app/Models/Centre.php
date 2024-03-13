@@ -20,6 +20,7 @@ class Centre extends Model
         "nom",
         "commune_id",
     ];
+    protected $appends = ['nombre_electeurs'];
     public function commune(): BelongsTo
     {
         return $this->belongsTo(Commune::class);
@@ -46,4 +47,9 @@ class Centre extends Model
         return $this->hasManyThrough(ResultatBureau::class, Bureau::class);
 
     }
+    public function getNombreElecteursAttribute(): int
+    {
+        return $this->bureaux->sum('nombre_electeurs');
+    }
+
 }
