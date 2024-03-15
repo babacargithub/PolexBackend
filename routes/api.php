@@ -56,7 +56,8 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
 {
     $token = request()->user()->createToken("name", [], Carbon::now()->addDay());
 //        $parti  = Parti::where('user_id', request()->user()->id)->first();
-    $parti = Parti::partiOfCurrentUser();
+    $parti = Parti::firstOrCreate(["user_id" => request()->user()->id], ["nom" => "Parti  #". request()->user()->name]);
+    //(request()->user()->parti_id
     $params = [];
 
     $partis_that_disable_date_expir_repeat = ['Pape '];
