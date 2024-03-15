@@ -56,16 +56,16 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
 {
     $token = request()->user()->createToken("name", [], Carbon::now()->addDay());
 //        $parti  = Parti::where('user_id', request()->user()->id)->first();
-    $parti = Parti::firstOrCreate(["user_id" => request()->user()->id], ["nom" => "Parti  #". request()->user()->name]);
-    //(request()->user()->parti_id
-    $params = [];
+    /*$parti = Parti::firstOrCreate(["user_id" => request()->user()->id], ["nom" => "Parti  #". request()->user()
+            ->name,"code" => "CODE ".rand()]);//(request()->user()->parti_id
 
     $partis_that_disable_date_expir_repeat = ['Pape '];
 
     $parti["has_pro"] = true;
     $parti["has_correction"] = true;
     $parti["has_autocomplete"] = true;
-    $parti["repeat_date_expir"] = ! in_array($parti->nom, $partis_that_disable_date_expir_repeat);
+    $parti["repeat_date_expir"] = ! in_array($parti->nom, $partis_that_disable_date_expir_repeat);*/
+    $params = [];
 
     $roles = [];
     foreach (request()->user()->roles as $role) {
@@ -78,7 +78,7 @@ function loginResponse(): ResponseFactory|Application|\Illuminate\Http\Response
 
     }*/
     $user = request()->user();
-    return response(["token" => $token, "parti" => $parti, "params" => $params,
+    return response(["token" => $token, "parti" => new Parti(), "params" => $params,
         "user" => [
             "email" => $user->email,
             "token" => $token->plainTextToken,
