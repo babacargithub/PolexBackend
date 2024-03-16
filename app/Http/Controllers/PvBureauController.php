@@ -218,7 +218,7 @@ class PvBureauController extends Controller
             ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
             ->whereIn('pv_bureaux.id', $idsOfPvToSum)
             ->select('regions.nom as region_nom', 'candidats.nom','candidats.photo', DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'))
-            ->groupBy('regions.nom', 'candidats.nom')
+            ->groupBy('regions.nom', 'candidats.nom','candidats.photo')
             ->get();
         $resultatsParRegions = $results->groupBy('region_nom')
             ->map(function ($items) {
