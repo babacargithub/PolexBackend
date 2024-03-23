@@ -72,6 +72,7 @@ class StorePvBureauRequest extends FormRequest
             'votants' => 'required|integer',
             'suffrages_exprimes' => 'required|integer',
             'bulletins_nuls' => 'required|integer',
+            'votants_hors_bureau' => 'required|integer',
             'type_pv' => 'required|string|in:bureau,centre,commune,departement',
             'inscrits' => 'required|integer',
             'region_id' => 'integer|exists:regions,id',
@@ -79,7 +80,25 @@ class StorePvBureauRequest extends FormRequest
             'resultats' => [
                 'required',
                 'array',
-                'size:20', // Ensure the array has exactly 21 items
+                'size:18',
+                function ($attribute, $value, $fail) {
+                    $totalVoix = array_sum(array_column($value, 'nombre_voix'));
+                    $nombre_inscrits = $this->input('inscrits');
+                    $nombre_votants = $this->input('votants');
+                    $bulletins_nuls = $this->input('bulletins_nuls');
+                    $votants_hors_bureau = $this->input('votants_hors_bureau');
+                    $suffrages_exprimes = $this->input('suffrages_exprimes');
+                    $totalExprime = $suffrages_exprimes;
+
+                    if ($totalVoix != $totalExprime) {
+                        $fail('La somme des voix des candidats doit etre égale au nombre de voix valablement exprimées + votants hors bureau. Somme des voix saisies '.$totalVoix.', Suffrages exprimés: '.$suffrages_exprimes);
+                    }
+                    if ($nombre_votants - $bulletins_nuls +$votants_hors_bureau  != $suffrages_exprimes) {
+                        $fail('Le nombre de votants + bulletins nul doit être égal  au nombre valablement exprimé');
+                    }
+
+                },
+                // Ensure the array has exactly 21 items
                 // Add any other rules specific to the "resultats" array items if needed
             ],
             'resultats.*.candidat_id' => 'required|integer|exists:candidats,id',

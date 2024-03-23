@@ -169,7 +169,6 @@ class PvBureauController extends Controller
     public function resultatsGlob()
     {
         $idsOfPvToSum = $this->getCalculatedPvBureaux();
-
         $results = ResultatBureau::selectRaw('candidat_id, sum(nombre_voix) as total')
             ->with('candidat')
             ->whereIn('pv_bureau_id', $idsOfPvToSum)
@@ -217,89 +216,208 @@ class PvBureauController extends Controller
             ->join('regions', 'pv_bureaux.region_id', '=', 'regions.id')
             ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
             ->whereIn('pv_bureaux.id', $idsOfPvToSum)
-            ->select('regions.nom as region_nom', 'candidats.nom','candidats.photo', DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'))
-            ->groupBy('regions.nom', 'candidats.nom','candidats.photo')
+            ->select('regions.nom as region_nom', 'candidats.nom', 'candidats.photo',
+                DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'),
+                DB::raw('(SELECT SUM(rb.nombre_voix)
+                               FROM resultats_bureaux rb
+                               JOIN pv_bureaux pb ON rb.pv_bureau_id = pb.id
+                               WHERE pb.region_id = regions.id) as total_voix_region'),
+                'regions.id') // Include regions.id in the selection.
+            ->groupBy('regions.nom', 'candidats.nom', 'candidats.photo', 'regions.id') // Add regions.id to the GROUP BY clause.
             ->get();
+
+// Step 2: Process the results to include the percentage.
         $resultatsParRegions = $results->groupBy('region_nom')
             ->map(function ($items) {
-                return $items->map(function ($item) {
+                $totalVotes = $items->sum('nombre_voix'); // This should match total_voix_region if calculated correctly.
+                return $items->map(function ($item) use ($totalVotes) {
+                    $percentage = ($item->nombre_voix / $item->total_voix_region) * 100; // Calculate percentage based on total votes per region
                     return [
                         'nom' => $item->nom,
-                        'photo' =>'storage/'. $item->photo,
-                        //TODO change
-                        'pourcentage'=>random_int(1,99),
+                        'photo' => 'storage/' . $item->photo,
+                        'pourcentage' => round($percentage, 2), // Round the percentage to 2 decimal places
                         'nombre_voix' => intval($item->nombre_voix)
                     ];
                 });
             });
-        $resultsDep = DB::table('pv_bureaux')
-            ->join('resultats_bureaux', 'pv_bureaux.id', '=', 'resultats_bureaux.pv_bureau_id')
-            ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
-            ->join('departements', 'pv_bureaux.departement_id', '=', 'departements.id')
 
-            ->whereIn('pv_bureaux.id', $idsOfPvToSum)
-            ->select('departements.nom as departement', 'candidats.nom', DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'))
-            ->groupBy('departements.nom', 'candidats.nom')
-            ->get();
-        $resultatsParDepartements = $resultsDep->groupBy('departement')
-            ->map(function ($items) {
-                return $items->map(function ($item) {
-                    return [
-                        //TODO change
-                        'pourcentage'=>random_int(1,99),
-                        'photo' => 'storage/'.Candidat::whereNom($item->nom)->first()->photo,
-                        'nom' => $item->nom,
-                        'nombre_voix' => intval($item->nombre_voix)
-                    ];
-                });
-            });
-       $resultsCommunes = DB::table('pv_bureaux')
+
+        $resultsDepartements =  DB::table('pv_bureaux')
             ->join('resultats_bureaux', 'pv_bureaux.id', '=', 'resultats_bureaux.pv_bureau_id')
+            ->join('departements', 'pv_bureaux.departement_id', '=', 'departements.id') // Change from regions to departements
             ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
-            ->join('centres', 'pv_bureaux.typeable_id', '=', 'centres.id')
-            ->join('communes', 'centres.commune_id', '=', 'communes.id')
-            ->where('pv_bureaux.typeable_type', Centre::class)
             ->whereIn('pv_bureaux.id', $idsOfPvToSum)
-            ->select('communes.nom as commune', 'candidats.nom', DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'))
-            ->groupBy('communes.nom', 'candidats.nom')
+            ->select('departements.nom as departement_nom', 'candidats.nom', 'candidats.photo', // Change from regions.nom to departements.nom
+                DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'),
+                DB::raw('(SELECT SUM(rb.nombre_voix)
+                               FROM resultats_bureaux rb
+                               JOIN pv_bureaux pb ON rb.pv_bureau_id = pb.id
+                               WHERE pb.departement_id = departements.id) as total_voix_departement'), // Change the subquery to focus on departements
+                'departements.id') // Change from regions.id to departements.id
+            ->groupBy('departements.nom', 'candidats.nom', 'candidats.photo', 'departements.id') // Change the GROUP BY clause to target departements
             ->get();
 
-        $resultatsParCommunes = $resultsCommunes->groupBy('commune')
+        $resultatsParDepartements = $resultsDepartements->groupBy('departement_nom')
             ->map(function ($items) {
-                return $items->map(function ($item) {
+                $totalVotes = $items->sum('nombre_voix'); // This remains the same, as it's a sum of votes within the grouping
+                return $items->map(function ($item) use ($totalVotes) {
+                    $percentage = ($item->nombre_voix / $item->total_voix_departement) * 100; // Change from total_voix_region to total_voix_departement
                     return [
-                        //TODO change
-                        'pourcentage'=>random_int(1,99),
-                        'photo' => 'storage/'.Candidat::whereNom($item->nom)->first()->photo,
-
                         'nom' => $item->nom,
-                        'nombre_voix' => intval($item->nombre_voix)
+                        'photo' => 'storage/' . $item->photo,
+                        'pourcentage' => round($percentage, 2), // No change needed here
+                        'nombre_voix' => intval($item->nombre_voix) // No change needed here
                     ];
                 });
             });
+       $resultsCommunes =  collect(DB::select("SELECT
+    cnd.nom,
+    cnd.photo,
+    combined.commune,
+    SUM(combined.nombre_voix) AS total_voix,
+    SUM(combined.nombre_voix) / commune_totals.total_voix_commune * 100 AS percentage
+FROM (
+     SELECT
+        pb.id AS pb_id,
+        c.id AS centre_id,
+        cm.id AS commune_id,
+        cm.nom AS commune,
+        rb.candidat_id,
+        rb.nombre_voix
+    FROM pv_bureaux pb
+    JOIN centres c ON pb.typeable_id = c.id
+    JOIN communes cm ON cm.id = c.commune_id
+    JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
+    WHERE pb.typeable_type LIKE '%Centre%'
 
-        $resultsParCandidats = DB::table('pv_bureaux')
+    UNION ALL
+
+    -- Second part: Joins with `bureaux`, then `centres`, and `communes` for Bureau type,
+    -- ensuring no double-counting of centres
+    SELECT
+        pb.id AS pb_id,
+        b.centre_id,
+        cm.id AS commune_id,
+        cm.nom AS commune,
+
+        rb.candidat_id,
+        rb.nombre_voix
+    FROM pv_bureaux pb
+    JOIN bureaux b ON pb.typeable_id = b.id
+    JOIN centres c ON b.centre_id = c.id
+    JOIN communes cm ON cm.id = c.commune_id
+    JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
+    WHERE pb.typeable_type LIKE '%Bureau%'
+    AND NOT EXISTS (
+        SELECT 1
+        FROM pv_bureaux pb2
+        WHERE pb2.typeable_type LIKE '%Centre%'
+        AND pb2.typeable_id = c.id
+    )
+) AS combined
+JOIN candidats cnd ON cnd.id = combined.candidat_id
+JOIN (
+    SELECT
+        commune,
+        SUM(nombre_voix) AS total_voix_commune
+    FROM (
+       SELECT
+        pb.id AS pb_id,
+        c.id AS centre_id,
+        cm.id AS commune_id,
+        cm.nom AS commune,
+        rb.candidat_id,
+        rb.nombre_voix
+    FROM pv_bureaux pb
+    JOIN centres c ON pb.typeable_id = c.id
+    JOIN communes cm ON cm.id = c.commune_id
+    JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
+    WHERE pb.typeable_type LIKE '%Centre%'
+
+    UNION ALL
+
+    -- Second part: Joins with `bureaux`, then `centres`, and `communes` for Bureau type,
+    -- ensuring no double-counting of centres
+    SELECT
+        pb.id AS pb_id,
+        b.centre_id,
+        cm.id AS commune_id,
+        cm.nom AS commune,
+
+        rb.candidat_id,
+        rb.nombre_voix
+    FROM pv_bureaux pb
+    JOIN bureaux b ON pb.typeable_id = b.id
+    JOIN centres c ON b.centre_id = c.id
+    JOIN communes cm ON cm.id = c.commune_id
+    JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
+    WHERE pb.typeable_type LIKE '%Bureau%'
+    AND NOT EXISTS (
+        SELECT 1
+        FROM pv_bureaux pb2
+        WHERE pb2.typeable_type LIKE '%Centre%'
+        AND pb2.typeable_id = c.id
+    )    ) AS commune_voices
+    GROUP BY commune
+) AS commune_totals ON combined.commune = commune_totals.commune
+GROUP BY combined.commune, cnd.nom, cnd.photo
+ORDER BY commune,total_voix DESC
+"));
+
+
+       $resultatsParCommunes = $resultsCommunes->groupBy('commune')
+                ->map(function ($items) {
+                    $totalVotes = $items->sum('nombre_voix'); // Sum of votes within each commune, logic remains unchanged
+                    return $items->map(function ($item) use ($totalVotes) {
+                        $percentage = ($item->percentage); // Calculate percentage
+                        // based on
+                        // total votes per commune
+                        return [
+                            'nom' => $item->nom,
+                            'photo' => 'storage/' . $item->photo,
+                            'pourcentage' => $percentage, // Rounding remains the same
+                            'nombre_voix' => intval($item->total_voix) // Conversion remains unchanged
+                        ];
+                    });
+                });
+
+
+
+         $resultsParCandidats = DB::table('pv_bureaux')
             ->join('resultats_bureaux', 'pv_bureaux.id', '=', 'resultats_bureaux.pv_bureau_id')
             ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
             ->join('regions', 'pv_bureaux.region_id', '=', 'regions.id')
+            ->joinSub(function ($query) {
+                // This subquery calculates the total votes per region
+                $query->from('resultats_bureaux')
+                    ->join('pv_bureaux', 'resultats_bureaux.pv_bureau_id', '=', 'pv_bureaux.id')
+                    ->selectRaw('pv_bureaux.region_id, SUM(resultats_bureaux.nombre_voix) as total_voix')
+                    ->groupBy('pv_bureaux.region_id');
+            }, 'total_votes_region', function ($join) {
+                $join->on('pv_bureaux.region_id', '=', 'total_votes_region.region_id');
+            })
             ->join('centres', 'pv_bureaux.typeable_id', '=', 'centres.id')
             ->join('communes', 'centres.commune_id', '=', 'communes.id')
-            ->where('pv_bureaux.typeable_type', Centre::class)
             ->whereIn('pv_bureaux.id', $idsOfPvToSum)
-            ->select( 'candidats.nom as candidat','regions.nom', DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'))
-            ->groupBy('regions.nom', 'candidats.nom')
+            ->select(
+                'candidats.nom as candidat',
+                'regions.nom as region_nom',
+                DB::raw('SUM(resultats_bureaux.nombre_voix) as nombre_voix'),
+                'total_votes_region.total_voix'
+            )
+            ->groupBy('regions.nom', 'candidats.nom', 'total_votes_region.total_voix')
             ->get();
-
-
         $resultsParCandidats = $resultsParCandidats->groupBy('candidat')
             ->map(function ($items) {
                 return $items->map(function ($item) {
                     return [
-                        'nom' => $item->nom,
-                        'nombre_voix' => intval($item->nombre_voix)
+                        'nom' => $item->region_nom,
+                        'nombre_voix' => intval($item->nombre_voix),
+                        'pourcentage' => round((($item->nombre_voix)/$item->total_voix) * 100,3)
                     ];
                 });
             });
+
         $resultsParCandidatsDepartements = DB::table('pv_bureaux')
             ->join('resultats_bureaux', 'pv_bureaux.id', '=', 'resultats_bureaux.pv_bureau_id')
             ->join('candidats', 'resultats_bureaux.candidat_id', '=', 'candidats.id')
@@ -337,8 +455,8 @@ class PvBureauController extends Controller
                                         "communes"=>$departement->communes()->get()->map(function (Commune $commune){
                                             return [
                                                 "nom"=>$commune->nom,
-                                                "nombre_voix"=>random_int(9999,99999),
-                                                "pourcentage"=>random_int(1,99)
+                                                "nombre_voix"=>null,
+                                                "pourcentage"=>null
 
                                             ];
                                         })
@@ -539,24 +657,28 @@ class PvBureauController extends Controller
      */
     public function getCalculatedPvBureaux(): array
     {
-        $pv_departements_enregistres = PvBureau::where('typeable_type', Departement::class)
+        $pv_departements_enregistres = PvBureau::where('typeable_type', 'LIKE',Departement::class)
             ->whereIn('typeable_id', Departement::all()->pluck('id')->toArray())
             ->get();
 
 
         // ====
-        $idsOfCentresDesDepartementsNonEnregistres = PvBureau::where('typeable_type', Centre::class)
+        $idsOfPvCentresDesDepartementsNonEnregistres = PvBureau::where('typeable_type', Centre::class)
             ->whereNotIn('departement_id', $pv_departements_enregistres->pluck('typeable_id')->toArray())
-            ->get();
+            ->get()->pluck('id')->toArray();
 
         $idsOfBureauxNonEnregistres = PvBureau::
         select(["pv_bureaux.*",'bureaux.centre_id','bureaux.id as bureau_id'])
             ->join('bureaux', 'pv_bureaux.typeable_id', '=', 'bureaux.id')
             ->where('typeable_type', Bureau::class)
-            ->whereIn('bureaux.centre_id', $idsOfCentresDesDepartementsNonEnregistres->pluck('typeable_id')->toArray())
-            ->get();
+            ->whereHas('bureau', function ($query) use ($idsOfPvCentresDesDepartementsNonEnregistres) {
+                $query->whereNotIn('centre_id', $idsOfPvCentresDesDepartementsNonEnregistres);
+            })
+            ->get()->pluck('id')->toArray();
 
-        return  array_merge($idsOfCentresDesDepartementsNonEnregistres->pluck('id')->toArray(), $pv_departements_enregistres->pluck('id')->toArray(),$idsOfBureauxNonEnregistres->pluck('id')->toArray());
+        return array_merge($idsOfPvCentresDesDepartementsNonEnregistres,
+            $pv_departements_enregistres->pluck('typeable_id')->toArray(),
+            $idsOfBureauxNonEnregistres);
     }
 
 }
