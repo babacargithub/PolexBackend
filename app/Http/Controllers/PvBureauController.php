@@ -275,9 +275,34 @@ class PvBureauController extends Controller
     cnd.photo,
     combined.commune,
     SUM(combined.nombre_voix) AS total_voix,
-    SUM(combined.nombre_voix) / commune_totals.total_voix_commune * 100 AS percentage
+    -- Calculate percentage using a subquery for total voix per commune to ensure alignment with GROUP BY
+    (SUM(combined.nombre_voix) / (
+        SELECT SUM(inner_combined.nombre_voix)
+        FROM (
+            SELECT cm.nom AS commune, rb.nombre_voix
+            FROM pv_bureaux pb
+            JOIN centres c ON pb.typeable_id = c.id AND pb.typeable_type LIKE '%Centre%'
+            JOIN communes cm ON cm.id = c.commune_id
+            JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
+            UNION ALL
+            SELECT cm.nom AS commune, rb.nombre_voix
+            FROM pv_bureaux pb
+            JOIN bureaux b ON pb.typeable_id = b.id AND pb.typeable_type LIKE '%Bureau%'
+            JOIN centres c ON b.centre_id = c.id
+            JOIN communes cm ON cm.id = c.commune_id
+            JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM pv_bureaux pb2
+                WHERE pb2.typeable_type LIKE '%Centre%'
+                AND pb2.typeable_id = c.id
+            )
+        ) AS inner_combined
+        WHERE inner_combined.commune = combined.commune
+    ) * 100) AS percentage
 FROM (
-     SELECT
+    -- Your UNION ALL subquery remains unchanged
+  SELECT
         pb.id AS pb_id,
         c.id AS centre_id,
         cm.id AS commune_id,
@@ -316,53 +341,8 @@ FROM (
     )
 ) AS combined
 JOIN candidats cnd ON cnd.id = combined.candidat_id
-JOIN (
-    SELECT
-        commune,
-        SUM(nombre_voix) AS total_voix_commune
-    FROM (
-       SELECT
-        pb.id AS pb_id,
-        c.id AS centre_id,
-        cm.id AS commune_id,
-        cm.nom AS commune,
-        rb.candidat_id,
-        rb.nombre_voix
-    FROM pv_bureaux pb
-    JOIN centres c ON pb.typeable_id = c.id
-    JOIN communes cm ON cm.id = c.commune_id
-    JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
-    WHERE pb.typeable_type LIKE '%Centre%'
-
-    UNION ALL
-
-    -- Second part: Joins with `bureaux`, then `centres`, and `communes` for Bureau type,
-    -- ensuring no double-counting of centres
-    SELECT
-        pb.id AS pb_id,
-        b.centre_id,
-        cm.id AS commune_id,
-        cm.nom AS commune,
-
-        rb.candidat_id,
-        rb.nombre_voix
-    FROM pv_bureaux pb
-    JOIN bureaux b ON pb.typeable_id = b.id
-    JOIN centres c ON b.centre_id = c.id
-    JOIN communes cm ON cm.id = c.commune_id
-    JOIN resultats_bureaux rb ON rb.pv_bureau_id = pb.id
-    WHERE pb.typeable_type LIKE '%Bureau%'
-    AND NOT EXISTS (
-        SELECT 1
-        FROM pv_bureaux pb2
-        WHERE pb2.typeable_type LIKE '%Centre%'
-        AND pb2.typeable_id = c.id
-    )    ) AS commune_voices
-    GROUP BY commune
-) AS commune_totals ON combined.commune = commune_totals.commune
 GROUP BY combined.commune, cnd.nom, cnd.photo
-ORDER BY commune,total_voix DESC
-"));
+ORDER BY combined.commune, total_voix DESC"));
 
 
        $resultatsParCommunes = $resultsCommunes->groupBy('commune')
