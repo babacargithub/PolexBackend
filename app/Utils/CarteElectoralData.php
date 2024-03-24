@@ -4,7 +4,7 @@ namespace App\Utils;
 
 class CarteElectoralData
 {
-    const NOMBRE_INSCRITS = 6986826;
+    const NOMBRE_INSCRITS = 7371864;
     const COMMUNES = [
             [
                 "region" => "AFRIQUE DU SUD",
