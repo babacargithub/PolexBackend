@@ -80,7 +80,7 @@ class StorePvBureauRequest extends FormRequest
             'resultats' => [
                 'required',
                 'array',
-                'size:18',
+                'size:19',
                 function ($attribute, $value, $fail) {
                     $totalVoix = array_sum(array_column($value, 'nombre_voix'));
                     $nombre_inscrits = $this->input('inscrits');
