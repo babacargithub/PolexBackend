@@ -169,6 +169,8 @@ class PvBureauController extends Controller
     public function resultatsGlob()
     {
         $idsOfPvToSum = $this->getCalculatedPvBureaux();
+        $total_voix = ResultatBureau::whereIn('pv_bureau_id', $idsOfPvToSum)->sum('nombre_voix');
+
 
         $results = ResultatBureau::selectRaw('candidat_id, sum(nombre_voix) as total')
             ->with('candidat')
@@ -179,7 +181,7 @@ class PvBureauController extends Controller
 
 
 
-        return array_map(function ($result) use ($idsOfPvToSum ){
+        $results = array_map(function ($result) use ($idsOfPvToSum ){
             return [
                 "nom"=>$result['candidat']['nom'],
                 "photo"=>'storage/'.$result['candidat']['photo'],
@@ -188,6 +190,12 @@ class PvBureauController extends Controller
                 "pourcentage"=>round((intval($result['total']) *100)/\DB::table('resultats_bureaux')->whereIn('pv_bureau_id',$idsOfPvToSum)->sum('nombre_voix'),2)
             ];
         },$results->toArray());
+
+        foreach ($results as $index=>$item){
+           $item['ranking'] =  $index+1;
+            $results[$index]= $item;
+        }
+        return (['total_voix'=>intval($total_voix), 'resultats'=>$results]);
     }
     public function resultatsDetailles()
     {
