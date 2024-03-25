@@ -169,7 +169,6 @@ class PvBureauController extends Controller
     public function resultatsGlob()
     {
         $idsOfPvToSum = $this->getCalculatedPvBureaux();
-        dd($idsOfPvToSum);
 
         $results = ResultatBureau::selectRaw('candidat_id, sum(nombre_voix) as total')
             ->with('candidat')
