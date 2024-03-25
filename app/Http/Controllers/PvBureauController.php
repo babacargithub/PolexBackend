@@ -169,6 +169,8 @@ class PvBureauController extends Controller
     public function resultatsGlob()
     {
         $idsOfPvToSum = $this->getCalculatedPvBureaux();
+        dd($idsOfPvToSum);
+
         $results = ResultatBureau::selectRaw('candidat_id, sum(nombre_voix) as total')
             ->with('candidat')
             ->whereIn('pv_bureau_id', $idsOfPvToSum)
@@ -637,9 +639,10 @@ ORDER BY combined.commune, total_voix DESC"));
      */
     public function getCalculatedPvBureaux(): array
     {
-        $pv_departements_enregistres = PvBureau::where('typeable_type', 'LIKE',Departement::class)
+        $pv_departements_enregistres = PvBureau::where('typeable_type',Departement::class)
             ->whereIn('typeable_id', Departement::all()->pluck('id')->toArray())
             ->get();
+
 
 
         // ====
@@ -655,9 +658,8 @@ ORDER BY combined.commune, total_voix DESC"));
                 $query->whereNotIn('centre_id', $idsOfPvCentresDesDepartementsNonEnregistres);
             })
             ->get()->pluck('id')->toArray();
-
         return array_merge($idsOfPvCentresDesDepartementsNonEnregistres,
-            $pv_departements_enregistres->pluck('typeable_id')->toArray(),
+            $pv_departements_enregistres->pluck('id')->toArray(),
             $idsOfBureauxNonEnregistres);
     }
 
