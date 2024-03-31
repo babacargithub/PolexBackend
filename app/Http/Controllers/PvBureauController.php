@@ -195,7 +195,16 @@ class PvBureauController extends Controller
            $item['ranking'] =  $index+1;
             $results[$index]= $item;
         }
-        return (['total_voix'=>intval($total_voix), 'resultats'=>$results]);
+        $results_definitifs = DB::select('SELECT rd.*, c.nom, c.photo FROM resultats_definitifs rd
+INNER JOIN candidats c ON c.id =rd.candidat_id
+ORDER BY nombre_voix DESC, pourcentage DESC');
+        $total_voix = intval(DB::select('SELECT SUM(nombre_voix) as total_voix FROM resultats_definitifs')
+        [0]->total_voix);
+        $results_definitifs = array_map(function ($item){
+            $item->photo  = 'storage/'.$item->photo;
+            return $item;
+        }, $results_definitifs);
+        return (['total_voix'=>intval($total_voix), 'resultats'=>$results_definitifs]);
     }
     public function resultatsDetailles()
     {
@@ -232,7 +241,8 @@ class PvBureauController extends Controller
                                JOIN pv_bureaux pb ON rb.pv_bureau_id = pb.id
                                WHERE pb.region_id = regions.id) as total_voix_region'),
                 'regions.id') // Include regions.id in the selection.
-            ->groupBy('regions.nom', 'candidats.nom', 'candidats.photo', 'regions.id') // Add regions.id to the GROUP BY clause.
+            ->groupBy('regions.nom', 'candidats.nom', 'candidats.photo', 'regions.id')
+            ->orderByDesc('nombre_voix')// Add regions.id to the GROUP BY clause.
             ->get();
 
 // Step 2: Process the results to include the percentage.
@@ -264,6 +274,7 @@ class PvBureauController extends Controller
                                WHERE pb.departement_id = departements.id) as total_voix_departement'), // Change the subquery to focus on departements
                 'departements.id') // Change from regions.id to departements.id
             ->groupBy('departements.nom', 'candidats.nom', 'candidats.photo', 'departements.id') // Change the GROUP BY clause to target departements
+            ->orderByDesc('nombre_voix')
             ->get();
 
         $resultatsParDepartements = $resultsDepartements->groupBy('departement_nom')
